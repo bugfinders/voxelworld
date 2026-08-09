@@ -17,11 +17,12 @@ public class VoxelPlayerController : MonoBehaviour
     InputAction moveAction;
     InputAction lookAction;
     InputAction jumpAction;
+    InputAction dig;
 
     Vector2 moveInput;
     Vector2 lookInput;
     bool jumpQueued;
-
+    public voxelAction doAction;
     private CharacterController cc;
 
     void Awake()
@@ -43,8 +44,12 @@ public class VoxelPlayerController : MonoBehaviour
         jumpAction.AddBinding("<Keyboard>/space");
 
         jumpAction.performed += ctx => jumpQueued = true;
+        
+        dig = new InputAction("Dig", InputActionType.Button);
+        dig.AddBinding("<Mouse>/leftButton").WithInteraction("hold(duration=2)");
+        dig.performed += ctx => doAction = voxelAction.dig;
     }
-
+    
     void OnEnable()
     {
         Cursor.lockState = CursorLockMode.Locked;
@@ -119,72 +124,12 @@ public class VoxelPlayerController : MonoBehaviour
 
         cam.transform.localRotation = Quaternion.Euler(pitch, 0f, 0f);
     }
+    
+}
 
-    /*
-    float GetGroundHeight(Vector3 pos)
-    {
-        // Raycast straight down to find terrain height
-        if (Physics.Raycast(pos + Vector3.up * 2f, Vector3.down, out RaycastHit hit, 10f))
-            return hit.point.y+1f; // voxel height
-
-        return float.NegativeInfinity;
-    }
-
-    bool IsGrounded()
-    {
-        Vector3 bottom = transform.position + capsuleBottomOffset;
-        //return Physics.Raycast(bottom + Vector3.up * 0.1f, Vector3.down, 0.2f);
-        var b = Physics.Raycast(bottom, Vector3.down, 1f);
-        Debug.Log(b);
-        return b;
-    }
-
-    void MoveHeightBased()
-    {
-        // camera-relative horizontal
-        Vector3 forward = cam.transform.forward;
-        Vector3 right = cam.transform.right;
-
-        forward.y = 0;
-        right.y = 0;
-
-        forward.Normalize();
-        right.Normalize();
-
-        Vector3 horizontal = (forward * moveInput.y + right * moveInput.x) * moveSpeed;
-        Vector3 desired = transform.position + horizontal * Time.deltaTime;
-
-        // HEIGHT CHECK
-        float currentHeight = GetGroundHeight(transform.position-capsuleBottomOffset);
-        float nextHeight = GetGroundHeight(desired-capsuleBottomOffset);
-        
-        // BLOCK movement if next height is higher
-        if (nextHeight > currentHeight)
-            transform.position = desired;
-
-        // vertical movement
-        if (IsGrounded() && verticalVelocity < 0f)
-            verticalVelocity = 0f;
-        else
-        {
-            verticalVelocity += gravity * Time.deltaTime;
-        }
-
-        if (jumpQueued && IsGrounded())
-        {
-            verticalVelocity = Mathf.Sqrt(jumpHeight * -2f * gravity);
-            jumpQueued = false;
-        }
-
-        
-
-        Vector3 verticalMove = new Vector3(0, verticalVelocity * Time.deltaTime, 0);
-        Vector3 desiredVertical = transform.position + verticalMove;
-
-        // vertical collision
-        if (!Physics.Raycast(desiredVertical + capsuleBottomOffset , Vector3.down, 0.2f))
-            transform.position = desiredVertical;
-        else
-            verticalVelocity = 0f;
-    } */
+public enum voxelAction
+{
+    nothing = 0,
+    dig = 1,
+    place = 2
 }

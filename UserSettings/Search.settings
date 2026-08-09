@@ -86,6 +86,11 @@ providers = {
 		priority = 210
 		defaultAction = null
 	}
+	"project-auditor-descriptors" = {
+		active = true
+		priority = 100
+		defaultAction = null
+	}
 }
 objectSelectors = {
 }
