@@ -9,6 +9,7 @@ public class VoxelPlayerController : MonoBehaviour
     public float jumpHeight = 1.5f;
     public float gravity = -20f;
     public float mouseSensitivity = 2f;
+    public float digRepeatInterval = 2f;
 
     float verticalVelocity = 0f;
     float yaw = 0f;
@@ -22,6 +23,8 @@ public class VoxelPlayerController : MonoBehaviour
     Vector2 moveInput;
     Vector2 lookInput;
     bool jumpQueued;
+    bool digHeld;
+    float digTimer;
     public voxelAction doAction;
     private CharacterController cc;
 
@@ -47,34 +50,71 @@ public class VoxelPlayerController : MonoBehaviour
         
         dig = new InputAction("Dig", InputActionType.Button);
         dig.AddBinding("<Mouse>/leftButton").WithInteraction("hold(duration=2)");
-        dig.performed += ctx => doAction = voxelAction.dig;
+        // The hold only arms repeating; the cadence is driven in Update.
+        dig.performed += ctx => { digHeld = true; digTimer = 0f; };
+        dig.canceled += ctx => digHeld = false;
     }
     
     void OnEnable()
     {
-        Cursor.lockState = CursorLockMode.Locked;
-        Cursor.visible = false;
+        /*Cursor.lockState = CursorLockMode.Locked;
+        Cursor.visible = false;*/
         moveAction.Enable();
         lookAction.Enable();
         jumpAction.Enable();
+        dig.Enable();
     }
 
     void OnDisable()
     {
-        Cursor.lockState = CursorLockMode.None;
-        Cursor.visible = true;
+        /*Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;*/
         moveAction.Disable();
         lookAction.Disable();
         jumpAction.Disable();
+        dig.Disable();
     }
 
     void Update()
     {
         moveInput = moveAction.ReadValue<Vector2>();
         lookInput = lookAction.ReadValue<Vector2>();
+
+        TickDig();
+
         RotateCamera();
         MoveController();
         // MoveHeightBased();
+    }
+
+    // Called when the aimed-at voxel changes, so switching target restarts the
+    // hold rather than inheriting progress made on the previous one.
+    public void ResetDigTimer()
+    {
+        digTimer = digRepeatInterval;
+        doAction = voxelAction.nothing;
+    }
+
+    // Raises doAction once per digRepeatInterval while the button stays held.
+    // The terrain clears the flag when it acts on it.
+    private void TickDig()
+    {
+        // Hold's canceled phase is unreliable once performed has fired, so disarm
+        // off the raw button state instead.
+        if (digHeld && !dig.IsPressed()) digHeld = false;
+
+        if (!digHeld)
+        {
+            digTimer = 0f; // next arming digs immediately
+            return;
+        }
+
+        digTimer -= Time.deltaTime;
+        if (digTimer <= 0f)
+        {
+            doAction = voxelAction.dig;
+            digTimer = digRepeatInterval;
+        }
     }
 
     private void MoveController()

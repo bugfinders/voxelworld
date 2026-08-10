@@ -11,6 +11,7 @@ public class Chunk : MonoBehaviour
     MeshFilter mf;
     MeshRenderer mr;
     MeshCollider mc;
+    Mesh mesh;
 
     public Bounds Bounds { get; private set; }
 
@@ -30,10 +31,10 @@ public class Chunk : MonoBehaviour
 
         Bounds = new Bounds(
             new Vector3(cx * size + size / 2f,
-                        (ChunkedVoxelTerrain.MAX_HEIGHT + ChunkedVoxelTerrain.MIN_HEIGHT) * 0.5f,
+                        (ChunkedVoxelTerrain.MAX_HEIGHT +1  + ChunkedVoxelTerrain.MIN_HEIGHT) * 0.5f,
                         cz * size + size / 2f),
             new Vector3(size,
-                        ChunkedVoxelTerrain.MAX_HEIGHT - ChunkedVoxelTerrain.MIN_HEIGHT,
+                        ChunkedVoxelTerrain.MAX_HEIGHT +1 - ChunkedVoxelTerrain.MIN_HEIGHT,
                         size)
         );
     }
@@ -61,13 +62,24 @@ public class Chunk : MonoBehaviour
 
         if (verts.Count == 0)
         {
+            if (mesh != null) mesh.Clear();
             mf.sharedMesh = null;
             mc.sharedMesh = null;
             return;
         }
 
-        Mesh mesh = new Mesh();
-        mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
+        // Reuse one Mesh per chunk. Allocating a new one per rebuild leaks the old
+        // one — Unity Objects are not collected when they go out of scope.
+        if (mesh == null)
+        {
+            mesh = new Mesh();
+            mesh.name = $"ChunkMesh_{cx}_{cz}";
+            mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
+        }
+        else
+        {
+            mesh.Clear();
+        }
 
         mesh.SetVertices(verts);
         mesh.SetTriangles(tris, 0);
@@ -75,7 +87,16 @@ public class Chunk : MonoBehaviour
         mesh.RecalculateBounds();
 
         mf.sharedMesh = mesh;
+
+        // Assigning the same reference back is a no-op, so the collider would keep
+        // its stale cooked data. Clear it first to force a re-cook.
+        mc.sharedMesh = null;
         mc.sharedMesh = mesh;
+    }
+
+    void OnDestroy()
+    {
+        if (mesh != null) Destroy(mesh);
     }
 
     bool FaceVisible(int x, int y, int z, int dx, int dy, int dz)
@@ -172,6 +193,6 @@ public class Chunk : MonoBehaviour
     public void SetVisible(bool visible)
     {
         mr.enabled = visible;
-        mc.enabled = visible;
+       // mc.enabled = visible;
     }
 }

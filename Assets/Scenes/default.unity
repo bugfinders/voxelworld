@@ -244,7 +244,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1036100322}
-  m_Enabled: 0
+  m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 3892662dfad860e48acac1494d67c920, type: 3}
   m_Name: 
@@ -254,6 +254,8 @@ MonoBehaviour:
   jumpHeight: 1.5
   gravity: -20
   mouseSensitivity: 2
+  digRepeatInterval: 2
+  doAction: 0
 --- !u!54 &1036100328
 Rigidbody:
   m_ObjectHideFlags: 0

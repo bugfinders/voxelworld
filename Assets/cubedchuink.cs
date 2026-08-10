@@ -221,6 +221,7 @@ public class ChunkedVoxelTerrain : MonoBehaviour
     }
 
     Vector3 curVoxel = Vector3.zero;
+    bool hasTarget;
     Vector2 CurPos = Vector3.zero;
 
     public void DrawVisibleChunks()
@@ -233,10 +234,10 @@ public class ChunkedVoxelTerrain : MonoBehaviour
 
     void FixedUpdate()
     {
-        if (control.doAction != voxelAction.dig )
+        if (control.doAction == voxelAction.dig)
         {
-            // delete voxel and update chunk
-            DeleteVoxel(curVoxel);
+            control.doAction = voxelAction.nothing;
+            if (hasTarget) DeleteVoxel(curVoxel);
         }
         DrawVisibleChunks();
         UpdateHighlightedVoxel(Mouse.current.position.ReadValue());
@@ -248,10 +249,26 @@ public class ChunkedVoxelTerrain : MonoBehaviour
         int vy = Mathf.FloorToInt(vector3.y);
         int vz = Mathf.FloorToInt(vector3.z);
 
-        if (IsSolid(vx, vy, vz))
-        {
+        if (!IsSolid(vx, vy, vz)) return;
 
-        }
+        solid[vx, vy, vz] = false;
+
+        int cx = vx / CHUNK_SIZE;
+        int cz = vz / CHUNK_SIZE;
+        RebuildChunk(cx, cz);
+
+        // Chunks read the global solid grid, so a voxel on a chunk border exposes
+        // a face that belongs to the neighbour's mesh. Rebuild that neighbour too.
+        if (vx % CHUNK_SIZE == 0) RebuildChunk(cx - 1, cz);
+        if (vx % CHUNK_SIZE == CHUNK_SIZE - 1) RebuildChunk(cx + 1, cz);
+        if (vz % CHUNK_SIZE == 0) RebuildChunk(cx, cz - 1);
+        if (vz % CHUNK_SIZE == CHUNK_SIZE - 1) RebuildChunk(cx, cz + 1);
+    }
+
+    void RebuildChunk(int cx, int cz)
+    {
+        if (cx < 0 || cz < 0 || cx >= chunks.GetLength(0) || cz >= chunks.GetLength(1)) return;
+        chunks[cx, cz].BuildMesh();
     }
 
     public void UpdateHighlightedVoxel(Vector2 mousePos)
@@ -272,18 +289,26 @@ public class ChunkedVoxelTerrain : MonoBehaviour
 
             if (IsSolid(vx, vy, vz))
             {
-                curVoxel = new Vector3(vx, vy, vz);
+                Vector3 aimed = new Vector3(vx, vy, vz);
+                if (!hasTarget || aimed != curVoxel) control.ResetDigTimer();
+
+                curVoxel = aimed;
+                hasTarget = true;
                 SetHoverCube(curVoxel);
             }
             else
             {
                 hoverCube.SetActive(false);
-                curVoxel = Vector2.zero;
+                if (hasTarget) control.ResetDigTimer();
+                curVoxel = Vector3.zero;
+                hasTarget = false;
             }
         }
         else
         {
             hoverCube.SetActive(false);
+            if (hasTarget) control.ResetDigTimer();
+            hasTarget = false;
         }
 
 
