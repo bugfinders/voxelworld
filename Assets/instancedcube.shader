@@ -25,6 +25,7 @@ Shader "Liz/SimpleInstanced"
             struct Attributes
             {
                 float3 positionOS : POSITION;
+                UNITY_VERTEX_INPUT_INSTANCE_ID
             };
 
             struct Varyings
@@ -35,6 +36,9 @@ Shader "Liz/SimpleInstanced"
             Varyings vert(Attributes IN)
             {
                 Varyings OUT;
+                // Without this unity_ObjectToWorld stays at instance 0 and every
+                // cube draws on top of the first one.
+                UNITY_SETUP_INSTANCE_ID(IN);
                 float3 worldPos = TransformObjectToWorld(IN.positionOS);
                 OUT.positionCS = TransformWorldToHClip(worldPos);
                 return OUT;

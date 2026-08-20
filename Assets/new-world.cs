@@ -1,13 +1,23 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 
-public class ChunkedVoxelTerrain : MonoBehaviour
+public class NewWorld : MonoBehaviour
 {
+    
+
     public Material material;
     public Transform player;
     public Camera cam;
     
-    private GameObject hoverCube;
+    
+
+    // Unit cube centred on the origin — assign Assets/CubeMesh.asset.
+    public Mesh cubemesh;
+
+    // Skip voxels whose six neighbours are all solid: they can never be seen,
+    // and every one of them costs an instance slot.
+    public bool cullHiddenVoxels = true;
+ //   private GameObject hoverCube;
     private LineRenderer[] hoverEdgeLines;
 
     public const int SIZE_X = 500;
@@ -18,18 +28,18 @@ public class ChunkedVoxelTerrain : MonoBehaviour
     const int CHUNK_SIZE = 25;
 
     bool[,,] solid;
-    //private int[,,] voxelType;
-    Chunk[,] chunks;
+    NewChunk[,] chunks;
 
     private VoxelPlayerController control;
 
     void Start()
     {
+        
         control = player.gameObject.GetComponent<VoxelPlayerController>();
         if (control == null) Debug.Log("Player has no VoxelPlayerController");
         control.enabled = false;
         //added
-        hoverCube = new GameObject("HoverCube");
+        /*hoverCube = new GameObject("HoverCube");
         hoverEdgeLines = new LineRenderer[12];
         Material hoverMat = new Material(Shader.Find("Sprites/Default"));
 
@@ -49,16 +59,21 @@ public class ChunkedVoxelTerrain : MonoBehaviour
             hoverEdgeLines[i] = lr;
         }
 
-        hoverCube.SetActive(false);
+        hoverCube.SetActive(false);*/
         // end
+        if (cubemesh == null) Debug.LogError("NewWorld.cubemesh is not assigned");
+        if (material == null) Debug.LogError("NewWorld.material is not assigned");
+        // DrawMeshInstanced silently draws nothing without this.
+        else if (!material.enableInstancing) material.enableInstancing = true;
+
         GenerateSolidGrid();
         CreateChunks();
-        BuildAllChunks();
+        //BuildAllChunks();
         MovePlayerToTopSurface();
         control.enabled = true;
     }
     
-    void SetHoverCube(Vector3 voxelPos)
+    /*void SetHoverCube(Vector3 voxelPos)
     {
         hoverCube.SetActive(true);
 
@@ -144,7 +159,7 @@ public class ChunkedVoxelTerrain : MonoBehaviour
             hoverEdgeLines[i].SetPosition(1, edges[i * 2 + 1]);
             hoverEdgeLines[i].enabled = edgeVisible[i];
         }
-    }
+    }*/
 
 
     void GenerateSolidGrid()
@@ -168,7 +183,7 @@ public class ChunkedVoxelTerrain : MonoBehaviour
         int chunksX = SIZE_X / CHUNK_SIZE;
         int chunksZ = SIZE_Z / CHUNK_SIZE;
 
-        chunks = new Chunk[chunksX, chunksZ];
+        chunks = new NewChunk[chunksX, chunksZ];
 
         for (int cx = 0; cx < chunksX; cx++)
         for (int cz = 0; cz < chunksZ; cz++)
@@ -176,8 +191,8 @@ public class ChunkedVoxelTerrain : MonoBehaviour
             GameObject go = new GameObject($"Chunk_{cx}_{cz}");
             go.transform.parent = transform;
 
-            Chunk chunk = go.AddComponent<Chunk>();
-            chunk.Init(cx, cz, CHUNK_SIZE, solid, material);
+            NewChunk chunk = go.AddComponent<NewChunk>();
+            chunk.Init(cx, cz, CHUNK_SIZE, solid, cubemesh, material, cullHiddenVoxels);
 
             chunks[cx, cz] = chunk;
         }
@@ -193,11 +208,11 @@ public class ChunkedVoxelTerrain : MonoBehaviour
         return solid[x, y, z];
     }
 
-    void BuildAllChunks()
+    /*void BuildAllChunks()
     {
         foreach (var chunk in chunks)
             chunk.BuildMesh();
-    }
+    }*/
 
     void MovePlayerToTopSurface()
     {
@@ -216,8 +231,12 @@ public class ChunkedVoxelTerrain : MonoBehaviour
             }
         }
 
-        topY+= 2f; // half for the cube, 1 for the player.
-        player.position = new Vector3(px + 0.5f, topY, pz + 0.5f);
+        // topY is the top face of the highest solid voxel, so it is where the
+        // player's FEET go. The controller owns the capsule pivot offset.
+        Vector3 feet = new Vector3(px + 0.5f, topY, pz + 0.5f);
+
+        if (control != null) control.PlaceFeetAt(feet);
+        else player.position = feet;
     }
 
     Vector3 curVoxel = Vector3.zero;
@@ -227,20 +246,27 @@ public class ChunkedVoxelTerrain : MonoBehaviour
     public void DrawVisibleChunks()
     {
         foreach (var chunk in chunks)
+        {
             chunk.SetVisible(IsChunkVisible(chunk));
-
+            chunk.Draw();
+        }
     }
 
+    void Update()
+    {
+        // DrawMeshInstanced only lasts one frame, so this cannot live in
+        // FixedUpdate — that would drop the world on any frame without a tick.
+        DrawVisibleChunks();
+    }
 
     void FixedUpdate()
     {
-        if (control.doAction == voxelAction.dig)
+        /*if (control.doAction == voxelAction.dig)
         {
             control.doAction = voxelAction.nothing;
             if (hasTarget) DeleteVoxel(curVoxel);
-        }
-        DrawVisibleChunks();
-        UpdateHighlightedVoxel(Mouse.current.position.ReadValue());
+        }*/
+     //   UpdateHighlightedVoxel(Mouse.current.position.ReadValue());
     }
 
     private void DeleteVoxel(Vector3 vector3)
@@ -257,8 +283,8 @@ public class ChunkedVoxelTerrain : MonoBehaviour
         int cz = vz / CHUNK_SIZE;
         RebuildChunk(cx, cz);
 
-        // Chunks read the global solid grid, so a voxel on a chunk border exposes
-        // a face that belongs to the neighbour's mesh. Rebuild that neighbour too.
+        // Chunks read the global solid grid, so removing a voxel on a chunk border
+        // can expose a neighbouring chunk's voxel. Rebuild that neighbour too.
         if (vx % CHUNK_SIZE == 0) RebuildChunk(cx - 1, cz);
         if (vx % CHUNK_SIZE == CHUNK_SIZE - 1) RebuildChunk(cx + 1, cz);
         if (vz % CHUNK_SIZE == 0) RebuildChunk(cx, cz - 1);
@@ -268,15 +294,15 @@ public class ChunkedVoxelTerrain : MonoBehaviour
     void RebuildChunk(int cx, int cz)
     {
         if (cx < 0 || cz < 0 || cx >= chunks.GetLength(0) || cz >= chunks.GetLength(1)) return;
-        chunks[cx, cz].BuildMesh();
+        chunks[cx, cz].Rebuild();
     }
 
-    public void UpdateHighlightedVoxel(Vector2 mousePos)
+    /*public void UpdateHighlightedVoxel(Vector2 mousePos)
     {
 
         /*Vector2 mousePos = Mouse.current != null
             ? Mouse.current.position.ReadValue()
-            : new Vector2(Screen.width * 0.5f, Screen.height * 0.5f);*/
+            : new Vector2(Screen.width * 0.5f, Screen.height * 0.5f);#1#
         Ray ray = cam.ScreenPointToRay(new Vector3(mousePos.x, mousePos.y, 0f));
 
         if (Physics.Raycast(ray, out RaycastHit hit, 10f))
@@ -294,11 +320,11 @@ public class ChunkedVoxelTerrain : MonoBehaviour
 
                 curVoxel = aimed;
                 hasTarget = true;
-                SetHoverCube(curVoxel);
+               // SetHoverCube(curVoxel);
             }
             else
             {
-                hoverCube.SetActive(false);
+               // hoverCube.SetActive(false);
                 if (hasTarget) control.ResetDigTimer();
                 curVoxel = Vector3.zero;
                 hasTarget = false;
@@ -306,15 +332,15 @@ public class ChunkedVoxelTerrain : MonoBehaviour
         }
         else
         {
-            hoverCube.SetActive(false);
+           // hoverCube.SetActive(false);
             if (hasTarget) control.ResetDigTimer();
             hasTarget = false;
         }
 
 
-    }
+    }*/
     
-    bool IsChunkVisible(Chunk chunk)
+    bool IsChunkVisible(NewChunk chunk)
     {
         Vector3 pos = chunk.Bounds.center;
         Vector3 toChunk = pos - cam.transform.position;
