@@ -1,0 +1,48 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <ui:Style src="Inventory.uss" />
+    <ui:VisualElement name="inventory-ui-root" class="inventory-ui-root">
+        <ui:VisualElement name="inventory-hotbar" class="inventory-hotbar">
+            <ui:VisualElement name="inventory-hotbar-slots" class="inventory-hotbar-slots">
+                <ui:Button name="inventory-slot-0" class="inventory-slot">
+                    <ui:Label name="inventory-slot-key" text="1" class="inventory-slot__key" />
+                </ui:Button>
+                <ui:Button name="inventory-slot-1" class="inventory-slot">
+                    <ui:Label name="inventory-slot-key" text="2" class="inventory-slot__key" />
+                </ui:Button>
+                <ui:Button name="inventory-slot-2" class="inventory-slot">
+                    <ui:Label name="inventory-slot-key" text="3" class="inventory-slot__key" />
+                </ui:Button>
+                <ui:Button name="inventory-slot-3" class="inventory-slot">
+                    <ui:Label name="inventory-slot-key" text="4" class="inventory-slot__key" />
+                </ui:Button>
+                <ui:Button name="inventory-slot-4" class="inventory-slot">
+                    <ui:Label name="inventory-slot-key" text="5" class="inventory-slot__key" />
+                </ui:Button>
+                <ui:Button name="inventory-slot-5" class="inventory-slot">
+                    <ui:Label name="inventory-slot-key" text="6" class="inventory-slot__key" />
+                </ui:Button>
+                <ui:Button name="inventory-slot-6" class="inventory-slot">
+                    <ui:Label name="inventory-slot-key" text="7" class="inventory-slot__key" />
+                </ui:Button>
+                <ui:Button name="inventory-slot-7" class="inventory-slot">
+                    <ui:Label name="inventory-slot-key" text="8" class="inventory-slot__key" />
+                </ui:Button>
+                <ui:Button name="inventory-slot-8" class="inventory-slot">
+                    <ui:Label name="inventory-slot-key" text="9" class="inventory-slot__key" />
+                </ui:Button>
+                <ui:Button name="inventory-slot-9" class="inventory-slot">
+                    <ui:Label name="inventory-slot-key" text="0" class="inventory-slot__key" />
+                </ui:Button>
+            </ui:VisualElement>
+        </ui:VisualElement>
+        <ui:VisualElement name="inventory-additional-panel" class="inventory-additional-panel">
+            <ui:VisualElement name="inventory-panel-header" class="inventory-panel-header">
+                <ui:Label name="inventory-panel-title" text="Inventory" class="inventory-panel-title" />
+                <ui:Button name="inventory-panel-toggle" text="Open (Tab)" class="inventory-panel-toggle" />
+            </ui:VisualElement>
+            <ui:ScrollView name="inventory-additional-scroll" class="inventory-additional-scroll">
+                <ui:VisualElement name="inventory-additional-content" class="inventory-additional-content" />
+            </ui:ScrollView>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

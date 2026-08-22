@@ -1,0 +1,178 @@
+:root {
+    --inventory-slot-size: 64px;
+    --inventory-gap: 6px;
+    --inventory-panel-background: rgba(12, 16, 24, 0.94);
+    --inventory-slot-background: rgba(31, 39, 53, 0.96);
+    --inventory-slot-border: rgba(170, 185, 205, 0.7);
+    --inventory-selected-border: rgb(255, 214, 76);
+    --inventory-text-color: rgb(245, 247, 250);
+}
+
+.inventory-ui-root {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 100%;
+    height: 100%;
+    flex-grow: 1;
+    align-items: center;
+    justify-content: flex-end;
+    padding-bottom: 28px;
+    padding-left: 20px;
+    padding-right: 20px;
+}
+
+.inventory-hotbar {
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    min-height: 80px;
+    padding: 8px;
+    background-color: var(--inventory-panel-background);
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+    border-bottom-left-radius: 8px;
+    border-bottom-right-radius: 8px;
+}
+
+.inventory-hotbar-slots {
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    flex-wrap: nowrap;
+}
+
+.inventory-slot {
+    position: relative;
+    width: var(--inventory-slot-size);
+    height: var(--inventory-slot-size);
+    flex-shrink: 0;
+    margin-left: 3px;
+    margin-right: 3px;
+    padding: 4px;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--inventory-slot-background);
+    border-left-width: 2px;
+    border-right-width: 2px;
+    border-top-width: 2px;
+    border-bottom-width: 2px;
+    border-left-color: var(--inventory-slot-border);
+    border-right-color: var(--inventory-slot-border);
+    border-top-color: var(--inventory-slot-border);
+    border-bottom-color: var(--inventory-slot-border);
+    color: var(--inventory-text-color);
+}
+
+.inventory-slot:hover {
+    background-color: rgb(63, 76, 96);
+}
+
+.inventory-slot--occupied {
+    opacity: 1;
+}
+
+.inventory-slot--selected {
+    border-left-color: var(--inventory-selected-border);
+    border-right-color: var(--inventory-selected-border);
+    border-top-color: var(--inventory-selected-border);
+    border-bottom-color: var(--inventory-selected-border);
+    background-color: rgb(70, 67, 42);
+}
+
+.inventory-slot--empty {
+    opacity: 0.58;
+}
+
+.inventory-slot--unavailable {
+    opacity: 0.36;
+}
+
+.inventory-slot__key {
+    position: absolute;
+    left: 5px;
+    top: 3px;
+    font-size: 12px;
+    color: rgb(215, 222, 232);
+    -unity-font-style: bold;
+}
+
+.inventory-slot__icon {
+    width: 38px;
+    height: 38px;
+}
+
+.inventory-slot__count {
+    position: absolute;
+    right: 5px;
+    bottom: 3px;
+    font-size: 14px;
+    color: var(--inventory-text-color);
+    -unity-font-style: bold;
+}
+
+.inventory-slot__name {
+    max-width: 54px;
+    margin-top: 3px;
+    font-size: 9px;
+    color: var(--inventory-text-color);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    -unity-text-align: middle-center;
+}
+
+.inventory-additional-panel {
+    display: none;
+    position: absolute;
+    width: 430px;
+    align-self: center;
+    bottom: 116px;
+    max-height: 360px;
+    padding: 10px;
+    background-color: var(--inventory-panel-background);
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+    border-bottom-left-radius: 8px;
+    border-bottom-right-radius: 8px;
+}
+
+.inventory-additional-panel--visible {
+    display: flex;
+}
+
+.inventory-panel-header {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
+
+.inventory-panel-title {
+    color: var(--inventory-text-color);
+    font-size: 18px;
+    -unity-font-style: bold;
+}
+
+.inventory-panel-toggle {
+    min-width: 70px;
+    padding-left: 10px;
+    padding-right: 10px;
+    color: var(--inventory-text-color);
+}
+
+.inventory-additional-scroll {
+    flex-grow: 1;
+    min-height: 70px;
+}
+
+.inventory-additional-content {
+    width: 100%;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+}

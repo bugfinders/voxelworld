@@ -20,11 +20,25 @@ public class ChunkedVoxelTerrain : MonoBehaviour
     public const int SIZE_X = 500;
     public const int SIZE_Z = 500;
     public const int MIN_HEIGHT = 0;
-    public const int MAX_HEIGHT = 20;
+    public const int MAX_HEIGHT = 50;
 
     private const int CHUNK_SIZE = 25;
+    private const string DIRT_MATERIAL_NAME = "Dirt";
     private Vector3 currentVoxel = Vector3.zero;
     private bool hasTarget;
+
+    public VoxelInventory Inventory => inventory;
+
+    private void Awake()
+    {
+        if (!ValidateMaterials())
+            return;
+
+        inventory = GetComponent<VoxelInventory>();
+        if (inventory == null)
+            inventory = gameObject.AddComponent<VoxelInventory>();
+        inventory.Initialize(materials);
+    }
 
     private void Start()
     {
@@ -32,16 +46,11 @@ public class ChunkedVoxelTerrain : MonoBehaviour
         if (control == null)
             Debug.LogError("Player has no VoxelPlayerController.");
 
-        if (!ValidateMaterials())
+        if (!inventory || !inventory.IsInitialized)
             return;
 
         if (control != null)
             control.enabled = false;
-
-        inventory = GetComponent<VoxelInventory>();
-        if (inventory == null)
-            inventory = gameObject.AddComponent<VoxelInventory>();
-        inventory.Initialize(materials);
 
         CreateHoverCube();
         GenerateSolidGrid();
@@ -116,7 +125,7 @@ public class ChunkedVoxelTerrain : MonoBehaviour
     {
         hoverCube.SetActive(true);
 
-        const float edgeOffset = 0.02f;
+        const float edgeOffset = 0.01f;
         int voxelX = Mathf.FloorToInt(voxelPosition.x);
         int voxelY = Mathf.FloorToInt(voxelPosition.y);
         int voxelZ = Mathf.FloorToInt(voxelPosition.z);
@@ -339,7 +348,7 @@ public class ChunkedVoxelTerrain : MonoBehaviour
 
         int materialIndex = voxelMaterials[voxelX, voxelY, voxelZ];
         solid[voxelX, voxelY, voxelZ] = false;
-        inventory.Add(materialIndex);
+        inventory.Add(GetDropMaterialIndex(materialIndex));
 
         int chunkX = voxelX / CHUNK_SIZE;
         int chunkZ = voxelZ / CHUNK_SIZE;
@@ -350,6 +359,22 @@ public class ChunkedVoxelTerrain : MonoBehaviour
         if (voxelZ % CHUNK_SIZE == 0) RebuildChunk(chunkX, chunkZ - 1);
         if (voxelZ % CHUNK_SIZE == CHUNK_SIZE - 1) RebuildChunk(chunkX, chunkZ + 1);
     }
+    private int GetDropMaterialIndex(int materialIndex)
+    {
+        if (materialIndex != grassMaterialIndex)
+            return materialIndex;
+
+        for (int i = 0; i < materials.Length; i++)
+        {
+            if (materials[i] != null && materials[i].name == DIRT_MATERIAL_NAME)
+                return i;
+        }
+
+        Debug.LogWarning("Grass was mined, but no Dirt material is configured for its inventory drop.");
+        return materialIndex;
+    }
+
+
 
     private void RebuildChunk(int chunkX, int chunkZ)
     {

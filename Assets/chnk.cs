@@ -11,6 +11,10 @@ public class Chunk : MonoBehaviour
     private Material[] materials;
     private int grassMaterialIndex;
 
+    private const float GrassSideDirtHeight = 0.9f;
+    private const float HalfPixelU = 1f / 32f;
+    private const float HalfPixelV = 1f / 64f;
+
     private MeshFilter meshFilter;
     private MeshRenderer meshRenderer;
     private MeshCollider meshCollider;
@@ -154,41 +158,110 @@ public class Chunk : MonoBehaviour
 
         Vector3 basePosition = new Vector3(x, y, z);
         bool isGrassMaterial = materialIndex == grassMaterialIndex;
-        const float halfPixelU = 1f / 32f;
-        const float halfPixelV = 1f / 64f;
-        Rect fullTile = new Rect(halfPixelU, halfPixelV, 1f - halfPixelU * 2f, 1f - halfPixelV * 2f);
-        Rect grassSideTile = new Rect(halfPixelU, halfPixelV, 1f - halfPixelU * 2f, 0.5f - halfPixelV * 2f);
-        Rect grassTopTile = new Rect(halfPixelU, 0.5f + halfPixelV, 1f - halfPixelU * 2f, 0.5f - halfPixelV * 2f);
+        Rect fullTile = new Rect(HalfPixelU, HalfPixelV, 1f - HalfPixelU * 2f, 1f - HalfPixelV * 2f);
+        Rect dirtTile = new Rect(HalfPixelU, HalfPixelV, 1f - HalfPixelU * 2f, 0.5f - HalfPixelV * 2f);
+        Rect grassTile = new Rect(HalfPixelU, 0.5f + HalfPixelV, 1f - HalfPixelU * 2f, 0.5f - HalfPixelV * 2f);
 
         if (FaceVisible(x, y, z, 0, 0, -1))
-            AddQuad(vertices, trianglesByMaterial[materialIndex], uvs, basePosition,
-                isGrassMaterial ? grassSideTile : fullTile,
-                new Vector3(0,0,0), new Vector3(0,1,0), new Vector3(1,1,0), new Vector3(1,0,0));
+        {
+            if (isGrassMaterial)
+                AddGrassSideFace(vertices, trianglesByMaterial[materialIndex], uvs, basePosition, dirtTile, grassTile,
+                    new Vector3(0,0,0), new Vector3(0,1,0), new Vector3(1,1,0), new Vector3(1,0,0), false);
+            else
+                AddQuad(vertices, trianglesByMaterial[materialIndex], uvs, basePosition, fullTile,
+                    new Vector3(0,0,0), new Vector3(0,1,0), new Vector3(1,1,0), new Vector3(1,0,0));
+        }
 
         if (FaceVisible(x, y, z, 0, 0, 1))
-            AddQuad(vertices, trianglesByMaterial[materialIndex], uvs, basePosition,
-                isGrassMaterial ? grassSideTile : fullTile,
-                new Vector3(0,0,1), new Vector3(1,0,1), new Vector3(1,1,1), new Vector3(0,1,1));
+        {
+            if (isGrassMaterial)
+                AddGrassSideFace(vertices, trianglesByMaterial[materialIndex], uvs, basePosition, dirtTile, grassTile,
+                    new Vector3(0,0,1), new Vector3(0,1,1), new Vector3(1,1,1), new Vector3(1,0,1), true);
+            else
+                AddQuad(vertices, trianglesByMaterial[materialIndex], uvs, basePosition, fullTile,
+                    new Vector3(0,0,1), new Vector3(1,0,1), new Vector3(1,1,1), new Vector3(0,1,1));
+        }
 
         if (FaceVisible(x, y, z, -1, 0, 0))
-            AddQuad(vertices, trianglesByMaterial[materialIndex], uvs, basePosition,
-                isGrassMaterial ? grassSideTile : fullTile,
-                new Vector3(0,0,0), new Vector3(0,0,1), new Vector3(0,1,1), new Vector3(0,1,0));
+        {
+            if (isGrassMaterial)
+                AddGrassSideFace(vertices, trianglesByMaterial[materialIndex], uvs, basePosition, dirtTile, grassTile,
+                    new Vector3(0,0,0), new Vector3(0,1,0), new Vector3(0,1,1), new Vector3(0,0,1), true);
+            else
+                AddQuad(vertices, trianglesByMaterial[materialIndex], uvs, basePosition, fullTile,
+                    new Vector3(0,0,0), new Vector3(0,0,1), new Vector3(0,1,1), new Vector3(0,1,0));
+        }
 
         if (FaceVisible(x, y, z, 1, 0, 0))
-            AddQuad(vertices, trianglesByMaterial[materialIndex], uvs, basePosition,
-                isGrassMaterial ? grassSideTile : fullTile,
-                new Vector3(1,0,0), new Vector3(1,1,0), new Vector3(1,1,1), new Vector3(1,0,1));
+        {
+            if (isGrassMaterial)
+                AddGrassSideFace(vertices, trianglesByMaterial[materialIndex], uvs, basePosition, dirtTile, grassTile,
+                    new Vector3(1,0,0), new Vector3(1,1,0), new Vector3(1,1,1), new Vector3(1,0,1), false);
+            else
+                AddQuad(vertices, trianglesByMaterial[materialIndex], uvs, basePosition, fullTile,
+                    new Vector3(1,0,0), new Vector3(1,1,0), new Vector3(1,1,1), new Vector3(1,0,1));
+        }
 
         if (FaceVisible(x, y, z, 0, 1, 0))
             AddQuad(vertices, trianglesByMaterial[materialIndex], uvs, basePosition,
-                isGrassMaterial ? grassTopTile : fullTile,
+                isGrassMaterial ? grassTile : fullTile,
                 new Vector3(0,1,0), new Vector3(0,1,1), new Vector3(1,1,1), new Vector3(1,1,0));
 
         if (FaceVisible(x, y, z, 0, -1, 0))
             AddQuad(vertices, trianglesByMaterial[materialIndex], uvs, basePosition,
-                isGrassMaterial ? grassSideTile : fullTile,
+                isGrassMaterial ? dirtTile : fullTile,
                 new Vector3(0,0,0), new Vector3(1,0,0), new Vector3(1,0,1), new Vector3(0,0,1));
+    }
+
+    private void AddGrassSideFace(List<Vector3> vertices, List<int> triangles, List<Vector2> uvs, Vector3 basePosition,
+                                  Rect dirtTile, Rect grassTile, Vector3 bottomLeft, Vector3 topLeft,
+                                  Vector3 topRight, Vector3 bottomRight, bool reverseWinding)
+    {
+        Vector3 splitLeft = Vector3.Lerp(bottomLeft, topLeft, GrassSideDirtHeight);
+        Vector3 splitRight = Vector3.Lerp(bottomRight, topRight, GrassSideDirtHeight);
+
+        Rect dirtSideTile = new Rect(dirtTile.x, dirtTile.y, dirtTile.width,
+            dirtTile.height * GrassSideDirtHeight);
+        Rect grassSideTile = new Rect(grassTile.x,
+            grassTile.y + grassTile.height * GrassSideDirtHeight,
+            grassTile.width,
+            grassTile.height * (1f - GrassSideDirtHeight));
+
+        if (reverseWinding)
+        {
+            AddQuadReversed(vertices, triangles, uvs, basePosition, dirtSideTile,
+                bottomLeft, splitLeft, splitRight, bottomRight);
+            AddQuadReversed(vertices, triangles, uvs, basePosition, grassSideTile,
+                splitLeft, topLeft, topRight, splitRight);
+            return;
+        }
+
+        AddQuad(vertices, triangles, uvs, basePosition, dirtSideTile,
+            bottomLeft, splitLeft, splitRight, bottomRight);
+        AddQuad(vertices, triangles, uvs, basePosition, grassSideTile,
+            splitLeft, topLeft, topRight, splitRight);
+    }
+
+    private void AddQuadReversed(List<Vector3> vertices, List<int> triangles, List<Vector2> uvs, Vector3 basePosition,
+                                 Rect tile, Vector3 bottomLeft, Vector3 topLeft, Vector3 topRight, Vector3 bottomRight)
+    {
+        int startIndex = vertices.Count;
+        vertices.Add(basePosition + bottomLeft);
+        vertices.Add(basePosition + bottomRight);
+        vertices.Add(basePosition + topRight);
+        vertices.Add(basePosition + topLeft);
+
+        triangles.Add(startIndex + 0);
+        triangles.Add(startIndex + 1);
+        triangles.Add(startIndex + 2);
+        triangles.Add(startIndex + 2);
+        triangles.Add(startIndex + 3);
+        triangles.Add(startIndex + 0);
+
+        uvs.Add(new Vector2(tile.xMin, tile.yMin));
+        uvs.Add(new Vector2(tile.xMax, tile.yMin));
+        uvs.Add(new Vector2(tile.xMax, tile.yMax));
+        uvs.Add(new Vector2(tile.xMin, tile.yMax));
     }
 
     private void AddQuad(List<Vector3> vertices, List<int> triangles, List<Vector2> uvs, Vector3 basePosition,
