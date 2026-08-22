@@ -352,7 +352,31 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f83ed9c8c05492449ab10d24362f94ed, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ChunkedVoxelTerrain
-  material: {fileID: 2100000, guid: 19bdf157618ad2d489757c8910ae9a8b, type: 2}
+  materials:
+  - {fileID: 2100000, guid: 78a2f7771e03ba34ea7d9edc67c6e4ef, type: 2}
+  - {fileID: 2100000, guid: 682edd20b6244f34ba2a3710204400cf, type: 2}
+  - {fileID: 2100000, guid: 32436a810acf3f545b731d373979572c, type: 2}
+  - {fileID: 2100000, guid: bc4462561ee2b5746a33cee4419d92fa, type: 2}
+  - {fileID: 2100000, guid: 76dd97d2b4b5cd248ae227eb9a2e6484, type: 2}
+  - {fileID: 2100000, guid: 2bc684caaf42d504e895ba65ee08e8e5, type: 2}
+  - {fileID: 2100000, guid: ad967c7161a3ab44fb868961ecee1d67, type: 2}
+  - {fileID: 2100000, guid: fa82d71ef1bed1f4ab46f7d261a91306, type: 2}
+  - {fileID: 2100000, guid: 38e6f16666fa7524888d134527f01c58, type: 2}
+  - {fileID: 2100000, guid: 3df6f378717c07b4f998208c856963f1, type: 2}
+  - {fileID: 2100000, guid: 2e776ce648b9edf488ce93e842e37b27, type: 2}
+  materialWeights:
+  - 0
+  - 45
+  - 25
+  - 10
+  - 7
+  - 6
+  - 3
+  - 2
+  - 1
+  - 0.2
+  - 0.8
+  grassMaterialIndex: 0
   player: {fileID: 1036100326}
   cam: {fileID: 1802050283}
 --- !u!1 &1802050280

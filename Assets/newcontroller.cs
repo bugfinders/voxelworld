@@ -49,9 +49,8 @@ public class VoxelPlayerController : MonoBehaviour
         jumpAction.performed += ctx => jumpQueued = true;
         
         dig = new InputAction("Dig", InputActionType.Button);
-        dig.AddBinding("<Mouse>/leftButton").WithInteraction("hold(duration=2)");
-        // The hold only arms repeating; the cadence is driven in Update.
-        dig.performed += ctx => { digHeld = true; digTimer = 0f; };
+        dig.AddBinding("<Mouse>/leftButton");
+        dig.performed += ctx => { digHeld = true; digTimer = digRepeatInterval; };
         dig.canceled += ctx => digHeld = false;
     }
     
