@@ -515,6 +515,78 @@ MonoBehaviour:
   p31:
     m_OverrideState: 1
     m_Value: {r: 0, g: 0, b: 0, a: 1}
+--- !u!114 &-144258421787218218
+MonoBehaviour:
+  m_ObjectHideFlags: 3
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ac1e685d8f7565142b879339cd471764, type: 3}
+  m_Name: SurfaceCacheGIVolumeOverride
+  m_EditorClassIdentifier: Unity.RenderPipelines.Universal.Runtime::UnityEngine.Rendering.Universal.SurfaceCacheGIVolumeOverride
+  active: 1
+  enabled:
+    m_OverrideState: 1
+    m_Value: 1
+  multiBounce:
+    m_OverrideState: 1
+    m_Value: 1
+  bouncePatchAllocation:
+    m_OverrideState: 1
+    m_Value: 1
+  sampleCount:
+    m_OverrideState: 1
+    m_Value: 2
+  temporalSmoothing:
+    m_OverrideState: 1
+    m_Value: 0.8
+  spatialFilterEnabled:
+    m_OverrideState: 1
+    m_Value: 1
+  spatialSampleCount:
+    m_OverrideState: 1
+    m_Value: 4
+  spatialRadius:
+    m_OverrideState: 1
+    m_Value: 1
+  temporalPostFilter:
+    m_OverrideState: 1
+    m_Value: 1
+  lookupSampleCount:
+    m_OverrideState: 1
+    m_Value: 6
+  upsamplingKernelSize:
+    m_OverrideState: 1
+    m_Value: 4
+  upsamplingSampleCount:
+    m_OverrideState: 1
+    m_Value: 2
+  volumeSize:
+    m_OverrideState: 1
+    m_Value: 128
+  volumeResolution:
+    m_OverrideState: 1
+    m_Value: 32
+  volumeCascadeCount:
+    m_OverrideState: 1
+    m_Value: 4
+  distanceFallback:
+    m_OverrideState: 1
+    m_Value: 0
+  renderingLayerMask:
+    m_OverrideState: 1
+    m_Value:
+      serializedVersion: 0
+      m_Bits: 4294967295
+  defragCount:
+    m_OverrideState: 1
+    m_Value: 2
+  patchWarping:
+    m_OverrideState: 1
+    m_Value: 1
 --- !u!114 &11400000
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -548,6 +620,7 @@ MonoBehaviour:
   - {fileID: 7518938298396184218}
   - {fileID: -1410297666881709256}
   - {fileID: -2675761964560233265}
+  - {fileID: -144258421787218218}
 --- !u!114 &853819529557874667
 MonoBehaviour:
   m_ObjectHideFlags: 3
@@ -612,7 +685,7 @@ MonoBehaviour:
   resolution:
     m_OverrideState: 1
     m_Value: 4
-  chromaticAbberationIntensity:
+  chromaticAberrationIntensity:
     m_OverrideState: 1
     m_Value: 0.5
 --- !u!114 &1052315754049611418

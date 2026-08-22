@@ -1,0 +1,1260 @@
+Added
+
+• unity projects create and unity projects link vcs can now create the new
+  repository through gh, glab, or tea instead of only the CLI's own REST
+  clients, which have only ever spoken to github.com and gitlab.com. --vcs now
+  also accepts a bare hostname — a GitHub Enterprise Server, a self-managed
+  GitLab, or a Gitea/Forgejo instance — and since none of those have a REST
+  client, creation there goes entirely through whichever of gh, glab, or tea is
+  installed and already signed in for that host, checked in that order. The same
+  fallback covers github.com/gitlab.com themselves when no token can be
+  resolved: the matching provider CLI steps in before the command gives up. No
+  token is ever read, stored, or forwarded on this path — the provider CLI's own
+  already-configured session does the work. A new --git-description <text> flag
+  sets the repository's description, honored by the REST clients and by every
+  provider CLI that supports it. When a provider CLI created the repository, the
+  result's vcs.mechanism field (gh | glab | tea) names which one — omitted for
+  the REST path, so existing scripts see no change on github.com/gitlab.com. A
+  missing or signed-out provider CLI, or a host nothing can create a repository
+  on at all, produces a distinct error naming what to install or sign in to, or
+  pointing at creating the repository yourself and linking it with unity
+  projects link vcs <path> <url>.
+
+• Git credential resolution now decides up front whether anyone is there to
+  answer, instead of leaving it to whatever git and its credential helper happen
+  to do. On a real terminal a configured credential helper is free to run its
+  own sign-in, including Git Credential Manager's browser and device-code flows,
+  and its instructions are relayed to you rather than swallowed. Without a
+  terminal, in CI, under a machine-readable --format, or with --non-interactive,
+  nothing prompts at all: the command fails immediately with exit 4 naming the
+  credential it needed and how to supply it out of band. Three cases used to
+  hang on a prompt nobody could answer, and one of them was --non-interactive
+  itself, which reached only unity projects create and was never consulted for
+  credentials even there. Interaction is judged on all three standard streams,
+  so the ordinary 2>file idiom can no longer write a password prompt into a file
+  and then wait on a keystroke you were never shown.
+• unity projects verify fails a job in seconds when the project itself is
+  broken, instead of after the expensive build step. unity doctor answers "can
+  this machine build?"; this answers "is this project sound?", which nothing did
+  before. It catches what version control breaks: an asset whose .meta a merge
+  dropped, so Unity mints a fresh guid and every reference to that asset
+  silently breaks; a .meta left behind by a deleted asset; two branches
+  introducing the same guid; unresolved conflict markers in a .meta,
+  ProjectSettings/*.asset, Packages/manifest.json, or packages-lock.json; and a
+  manifest that no longer parses. Each otherwise surfaces much later as a
+  confusing import error, or an artifact that is wrong rather than absent. Every
+  finding carries a stable code — META_MISSING, META_ORPHAN, GUID_DUPLICATE,
+  CONFLICT_MARKERS, MANIFEST_INVALID, EDITOR_VERSION_DRIFT — plus a severity,
+  the path, and a hint. Errors exit 6; warnings alone exit 0, and --strict
+  promotes them. --check runs a subset by code (either spelling: meta-missing or
+  META_MISSING). --format json returns the full report, ndjson streams one
+  record per finding, and github turns each into an inline annotation anchored
+  to the file and line, so a red step points at the asset rather than at a log
+  to scroll. Editor-version drift is opt-in, since nothing in the CLI stores a
+  pinned version: pass --expect-editor <version> and it warns when
+  ProjectVersion.txt disagrees. No Editor, no license, no installed editor, no
+  network — and asset bodies are never read, so it stays fast on a large
+  project. Built for repositories nobody has reviewed yet: finding paths are
+  project-relative and escape-stripped, the project root has its home directory
+  masked, a symlinked Assets/ or ProjectSettings/ is refused rather than
+  followed out of the project, every read is bounded, and anything it could not
+  inspect is counted in summary.unverifiable and named by a PATH_UNVERIFIABLE
+  warning — so a 0 exit never quietly means "did not look", and you can see
+  which subtree went unchecked. Detection only; repairing meta and guid
+  divergence needs the Editor's own asset database.
+• unity build now writes a build provenance manifest next to its output,
+  recording what produced the build: the editor version and changeset that
+  actually ran, the resolved package set from Packages/packages-lock.json
+  (falling back to manifest.json), the build target, the build profile and
+  execute method where they apply, the version stamp, the git revision and
+  whether the working tree was clean, the CLI version, and the start and end
+  timestamps. A build artifact previously carried no reliable record of its
+  inputs, so answering "which editor and which packages produced this binary"
+  months later meant correlating CI logs that may no longer exist. The manifest
+  is written for failed builds too, with the outcome and exit code recorded, so
+  a red build is diagnosable from the same file. It lands beside the artifact —
+  Build/Game.x86_64 gets Build/Game.provenance.json — or beside the build log
+  when --execute-method is used without --output-path, because the execute
+  method picks the output location inside the editor and the CLI cannot know it.
+  --provenance-path puts it anywhere you like and --no-provenance turns it off;
+  under --format json and --format ndjson the resolved path is reported as
+  data.provenance, omitted when no manifest was written — and reported on a
+  failed build too, since that is exactly when a caller needs to find it. The
+  git revision is read before the build starts, so a build that writes its
+  artifact into the project is not recorded as having been built from a dirty
+  tree. The file is designed to be published alongside artifacts, so it is
+  redacted by omission: paths are project-relative and dropped if they escape
+  the project, and the --args passthrough, the Android keystore fields, the
+  editor's install location, the hostname, and the OS account name are never
+  written at all. Package references get the one exception, because dependencies
+  is the one field that carries arbitrary text — a git URL keeps its locator but
+  loses any embedded credentials, and a file: dependency is recorded as
+  file:<local> rather than naming a directory on your machine. A versioned
+  schemaVersion lets consumers evolve, and a manifest that cannot be written
+  warns rather than failing the build. Documented in docs/build-provenance.md
+  (./docs/build-provenance.md).
+• unity build can now tell a stalled Editor from a slow one. A long build prints
+  a periodic heartbeat — "Still building — 4m30s elapsed, last log output 3m10s
+  ago" — that tracks both how long the build has been running and how long since
+  the Editor log last grew, so silence in the log no longer looks the same as a
+  hang. The heartbeat appears on the human path (on stderr, so the streamed
+  build log stays clean) and as periodic progress frames under --format json and
+  --format ndjson; the human-path print is unaffected by --no-tail but is
+  suppressed by --quiet, while the --format json/--format ndjson frames are
+  emitted regardless of --quiet. A new --timeout <seconds> flag (env
+  UNITY_BUILD_TIMEOUT) aborts a build that runs longer than the given number of
+  seconds and exits 6, mirroring unity test and unity run; it is disabled by
+  default, so existing long builds are unaffected.
+• unity collaboration — unity collab for short — works Unity Collaboration from
+  the command line. Annotations are the heart of it: create, list, get, update,
+  delete, and export them, walk a thread's replies, resolve and unresolve, and
+  count what's open — with --fields to pick columns, --sort and --next to page,
+  and --resolve-users to turn author ids into names. Around that: unity collab
+  attachments uploads and downloads files, sketches, and spatial pins on an
+  annotation; unity collab thumbnail uploads and downloads thread thumbnails;
+  unity collab reactions adds and removes emoji; unity collab read, subscribe,
+  and unsubscribe manage what you're following. unity collab jira connects a
+  Jira server to a Unity project and creates, searches, and links issues from
+  the CLI, so a review comment becomes a tracked ticket without leaving the
+  terminal. Every command honors --format json, tsv, and ndjson, so this drops
+  into a script or a CI job the same way the rest of the CLI does. The family
+  was previously reachable only in development builds; it is now part of every
+  build, and appears in unity --help and in shell tab completion.
+• --format github reports failures as GitHub Actions annotations instead of
+  plain terminal text, on every command. A command that fails prints
+  ::error::<message> and a warning prints ::warning::<message>, which the runner
+  turns into an annotation on the job — so a red step says what went wrong in
+  the run summary rather than only inside the log. Human progress output is
+  unchanged, so the run stays readable. Settable via UNITY_FORMAT, and inert
+  everywhere else: to any other terminal or log collector the ::-prefixed lines
+  are ordinary text, so a local --format github run is reproducible and
+  harmless. Values are sanitized and percent-encoded before they reach a
+  workflow command, because the protocol is line-oriented and the runner
+  unescapes nothing — an editor-supplied newline must not be able to end one
+  command and start another. Annotations are not yet anchored to a file and
+  line: harvesting compile diagnostics out of the editor log, and wrapping that
+  log in a collapsible group, is a separate change. Complementary to
+  --report-format junit rather than an alternative — a JUnit file needs an
+  upload-and-report step and lands in its own tab, while annotations need
+  neither.
+• unity cache key prints a deterministic cache key for CI cache steps, so a
+  workflow no longer has to hand-roll the hashing of a Unity project's build
+  cache. The key covers the three things that actually invalidate a Library/
+  folder — the editor version from ProjectVersion.txt, the resolved package set
+  from Packages/packages-lock.json (falling back to manifest.json), and the
+  build target you pass with --target. It deliberately ignores everything else,
+  so editing a scene or a script doesn't throw away a cache that is still valid
+  for it. The same project produces the same key on Windows, macOS, and Linux:
+  line endings and a byte-order mark are normalized before hashing, and no path,
+  username, or timestamp goes into it — which is what makes the cache actually
+  hit across a build matrix. Output is a single line on stdout and nothing else,
+  so key: Library-$(unity cache key --target Android) works as-is. --format json
+  returns the key plus every component's value and hash for building layered
+  keys, and --component editor|packages|target prints one component on its own
+  for a fallback level. An unknown --target is rejected rather than quietly
+  hashed, because a typo like android would otherwise produce a valid-looking
+  key that no other job in the matrix ever matches. Runs without an editor and
+  without network access.
+
+• The "no Git credential helper is configured" guidance now tells you how to fix
+  it on the platform you are on, instead of handing you a repository URL to go
+  read. Windows users learn that Git Credential Manager ships inside Git for
+  Windows (so a missing helper usually means a minimal or custom git install)
+  with the standalone installer as the alternative; macOS users get the brew
+  install --cask git-credential-manager one-liner; Linux users get dotnet tool
+  install -g git-credential-manager plus the git-credential-manager configure
+  step, which is required on every Linux install method and whose omission used
+  to loop you straight back to the same message with no hint why. The same
+  platform-specific route now also appears in the self-hosted host guidance when
+  no credential helper is configured for that host, and unity doctor gained a
+  git-credential-helper check reporting whether any helper is configured
+  (advisory only: it never fails doctor or doctor --ci, and it is omitted on
+  machines without git). The CLI still installs and reconfigures nothing; every
+  route is a suggestion you run yourself.
+• unity test --shard N/M runs one deterministic slice of a suite, so a CI matrix
+  can take --shard 1/5 through --shard 5/5 and finish in a fifth of the
+  wall-clock time. Splitting a Unity suite by hand meant hand-writing
+  -testFilter expressions, which requires knowing the test inventory up front
+  and produces brittle splits that rot as tests are added. The editor still
+  cannot list tests without running them, so the CLI reads the full test names
+  out of an NUnit report an earlier run already wrote — the file unity test
+  produces anyway. That defaults to the unsharded --output path, and
+  --shard-inventory points at one somewhere else, such as a cached CI artifact;
+  seed it by running the suite once without --shard. Which slice a test lands in
+  is a hash of its fully qualified name, not its position in that file, which is
+  what makes the split reproducible: the same suite and shard count always
+  produce the same assignment, so a failure reproduces on the shard that
+  reported it, and adding a test leaves every other test on the shard it was
+  already on. Every test in the inventory belongs to exactly one shard — nothing
+  is skipped, nothing runs twice — and nothing about a previous run's results or
+  timings feeds the split, so it does not drift between runs. --filter is
+  applied by the CLI, against the inventory, and the slice is taken from what
+  survives — it has to be, because the editor accepts a single test filter and
+  the slice's own list of names already occupies it, so a filter passed through
+  would be dropped; --mode is unchanged. Every artifact a sharded run writes —
+  the results report, the JUnit report, the coverage directory — gains a
+  .shard-N-of-M suffix, so shards sharing a working directory never overwrite
+  each other and a merge step can collect them by glob. --format json reports
+  the shard index, the shard count, and the tests assigned to it; that block is
+  absent on an unsharded run, so existing output is unchanged. A slice with no
+  tests assigned skips the editor and exits 0 with a warning rather than
+  launching with an empty filter, which would have quietly run the entire suite
+  on every shard.
+
+• unity doctor --ci is a preflight for the first step of a CI job: it checks
+  that the machine can actually finish a build or test run and exits non-zero if
+  it cannot, so a pipeline fails in seconds instead of tens of minutes into a
+  build with an error far from the real cause. It verifies an activatable
+  license, that the project's ProjectVersion.txt editor is installed, free space
+  on the volumes the run writes to, and that the Unity services endpoint is
+  reachable through whatever proxy is configured. Plain unity doctor is
+  unchanged — it stays the paste-into-a-ticket report and still always exits 0.
+  Two exit codes, because a pipeline needs to tell the two kinds of bad news
+  apart: 6 is a definitive failure that a retry cannot fix (no license, the
+  editor isn't installed, disk below the floor) and 7 means the preflight could
+  not reach a verdict because a required service was unreachable, which is worth
+  retrying. A 6 wins when both happen, so a real blocker is never reported as
+  retryable. Warnings never fail a job: a slow endpoint, a tight-but-workable
+  disk, and the existing PATH and long-path checks all ride along as advisory
+  rows. Every check reports a machine-readable code — LICENSE_NONE,
+  EDITOR_NOT_INSTALLED, DISK_SPACE_LOW, NETWORK_UNREACHABLE and friends — plus a
+  remediation hint, and --format json keeps the full per-check list in data even
+  on failure, with one coded entry per failure in errors, so a workflow can
+  branch on an individual check instead of parsing prose. With --format github
+  each failure becomes an ::error annotation that lands inline on the pull
+  request. The report omits install paths and the log tail and masks
+  home-directory usernames, so it is safe to paste into a public CI log. --ci is
+  always explicit and is never inferred from CI=true, because a report that
+  silently changed shape and exit code on a runner would be worse than one you
+  have to ask for.
+• unity projects clone and unity projects link vcs now accept a git repository
+  URL, so any git host works: Bitbucket, Azure DevOps, Gitea, a self-hosted
+  GitLab, a bare server. Both commands only ever spoke to github.com and
+  gitlab.com before, because the remote URL was always synthesized from --vcs,
+  --vcs-namespace, and --vcs-repo; the most natural thing to try, pasting the
+  repository's URL, was not an argument either command took. It is now an
+  optional positional: unity projects clone https://bitbucket.org/team/game.git,
+  an ssh:// URL, or the git@host:path shorthand. The URL form performs no
+  provider API call and takes no provider flags (supplying both a URL and the
+  flags is a usage error rather than a guess), and for hosts the CLI has no
+  integration with, transport and authentication are plain git, riding whatever
+  the machine already has configured: your credential manager, a running
+  ssh-agent, an ~/.ssh/config alias. An explicit https:// URL to github.com or
+  gitlab.com keeps the provider-aware handling (LFS credentials, repository
+  detection) when a token is passed with --git-token or --git-token-stdin. Those
+  two flags are the only token sources the URL form reads: without them it rides
+  ambient git auth even on a known host, so a UNITY_GITHUB_TOKEN /
+  UNITY_GITLAB_TOKEN environment variable participates only in the flag form.
+  link vcs's URL form attaches the project to a repository that already exists
+  on the provider, which the flag form cannot do at all. Failures distinguish a
+  malformed URL, an unreachable host, and an authentication failure. The flag
+  form is unchanged, and everything a URL enables beyond it (SSH transport,
+  self-hosted sign-in guidance, repository creation through provider CLIs) is
+  covered by its own entry in this release.
+• unity projects clone, unity projects link vcs, and unity projects create --vcs
+  now work fully over SSH. An ssh:// URL or a user@host:path shorthand passed to
+  clone/link vcs's [url] form is never rewritten to HTTPS — it rides the exact
+  transport you gave it, with your own git already responsible for
+  authentication. unity projects create --vcs <provider> and link vcs's flag
+  form gain --git-remote-protocol https|ssh (default https, unchanged): with
+  ssh, the provider API call that creates the repository still uses your
+  resolved token — there is no SSH equivalent for that call — but the local
+  origin remote and the initial push switch to the repository's
+  git@<host>:<owner>/<repo>.git form with pure ambient SSH auth. Every SSH
+  connection now behaves the same, deliberate way: a key held by a running
+  ssh-agent is used automatically, and a repository-local core.sshCommand or an
+  ~/.ssh/config host alias is honored exactly as it would be by plain git (the
+  CLI supplies its own defaults only when none of those is already set). On a
+  real terminal, an unfamiliar host's fingerprint still goes through ssh's own
+  prompt so you can verify it yourself, exactly as with plain git; in a
+  non-interactive invocation — over CI or with --non-interactive, where nothing
+  could ever answer that prompt — an unknown host is instead trusted and pinned
+  on first connect, and a later change to that host's key still fails loudly
+  either way. That same non-interactive case is also where a
+  passphrase-protected key with no agent fails immediately with an actionable
+  error instead of hanging; an interactive terminal still gets the ordinary
+  passphrase prompt. Failures now distinguish an unreachable host, a rejected or
+  unknown SSH host key, and an authentication failure, each with its own exit
+  code and message.
+• Pointing the CLI at a self-hosted or enterprise git host now tells you how to
+  sign in to it. GitHub Enterprise Server, self-managed GitLab, and self-hosted
+  Gitea or Forgejo all work with the URL form of unity projects clone and unity
+  projects link vcs, but each host signs in separately: being signed in to
+  github.com grants nothing on ghe.example.com. A first attempt against such a
+  host failed with the same bare authentication error as a mistyped github.com
+  password, with nothing to say that the host needs its own login step first.
+  That failure now carries the command to fix it, chosen from what is on your
+  machine. If gh, glab, or tea is installed but has no session for that host,
+  the CLI names that tool's own host-scoped login (gh auth login --hostname
+  <host>, glab auth login --hostname <host>, tea login add --name <name> --url
+  https://<host>); gh and glab keep one session per host and can be signed in to
+  several at once, which is why the suggestion is scoped rather than bare.
+  Working out what to suggest is done carefully: the CLI asks each installed
+  tool whether it has a session for that specific host, with credential-bearing
+  environment variables stripped from the child process. Without that, gh
+  applies GH_ENTERPRISE_TOKEN to any non-cloud host and dials it to validate the
+  token, which would hand your enterprise credential to whoever runs a host that
+  merely appeared in a failing URL; stripped, gh answers from its own stored
+  config and never contacts a host you have not configured. The trade is that
+  authenticating purely through those environment variables, with no entry in
+  the tool's own config, reads as signed out and gets offered a sign-in it does
+  not need. If none of them is installed, it says so plainly and points at the
+  credential manager instead, which keeps one credential per host and picks it
+  up once git credential approve has stored one. An SSH URL is mentioned as
+  needing none of this, and is not suggested to you if you already used one. The
+  CLI reads and stores no token on any of these paths: every message routes to
+  the provider's own login command or to your credential manager. This is advice
+  only, on the failure path only, and it rides stderr, so --format json and
+  --format ndjson output is byte-for-byte unchanged and neither runs the
+  detection at all. unity projects clone --help gained a short note covering the
+  same three routes.
+• unity test --retries N re-runs the tests that failed, up to N extra attempts
+  (maximum 10), and tells you which ones only passed the second time. A flaky
+  test is expensive in a way a consistently failing one is not: it fails a
+  pipeline at random, and the usual workaround — re-running the whole job until
+  it goes green — hides the flake, wastes the time of everyone who reruns it,
+  and quietly masks real regressions along the way. Retrying here is the
+  opposite of that. Only the failing tests are re-run, not the suite, so a retry
+  costs the failures rather than another full pass; and a test that passes only
+  on a retry is reported as flaky rather than being absorbed into a green job.
+  The run exits 0 when everything eventually passes, so a pipeline is not
+  blocked by a flake, but the flakiness is stated in the output, in --format
+  json, and in a test-results.retries.json file written next to the report —
+  which exists because a failing run's JSON envelope carries no data, and the
+  per-test attempt counts matter most exactly when the run failed. Tests that
+  never pass still exit 8. Retries are off by default and --timeout applies per
+  attempt, not to the whole sequence.
+• A retry only clears a failure it actually contradicted. The editor exits
+  successfully both for "ran those tests and they passed" and for "matched none
+  of them" — and because it reads a test filter as a name or a regular
+  expression, a name can also match a neighbouring test instead. So a pass is
+  taken on its word only when the report shows the tests in question ran and did
+  not fail; otherwise they stay failing, the run exits 8, and a warning says
+  why. A retry that crashes or times out likewise does not un-fail what an
+  earlier attempt already recorded: the run reports the test failure rather than
+  the "no verdict, safe to retry" outcome, so a pipeline is never sent to
+  blindly re-run a genuine regression. A run that never produced a verdict in
+  the first place is not retried at all — there is no failing set to narrow to,
+  and re-running the same compile error only spends the budget on it.
+• Artifacts a retried run leaves behind: --output keeps the first attempt's
+  report, because rewriting it to show a flaky test as passing would hide the
+  very thing this is for, and each retry writes its own .attempt-N report beside
+  it. Note that a JUnit report is converted from that first attempt too, so a
+  run that went green on a retry still ships a JUnit file naming the original
+  failure — if your CI gates on the ingested JUnit artifact rather than the exit
+  code, a flake will still show red there. Coverage is collected on the first
+  attempt only, so a retry of a handful of tests cannot replace the whole
+  suite's coverage with that subset's.
+• unity test --rerun-failed runs only the tests that failed in the previous
+  run's report, so a follow-up CI job can re-check the failures without paying
+  for the whole suite again. It reads the failing set from --output, the file
+  unity test already writes, and can be combined with --retries. Its own report
+  goes to test-results.rerun.xml rather than over --output, since a rerun covers
+  only part of the suite and overwriting the full-suite record would also shrink
+  the inventory --shard reads from that same path. If nothing failed, the editor
+  is not started and the run exits 0 — an empty test filter is no filter at all,
+  and launching would have run everything. It cannot be combined with --shard:
+  the editor accepts a single test filter and each of them needs it, so to retry
+  a shard, run that shard again with --retries.
+
+Changed
+
+• Git operations now respect your own git configuration. Until now the CLI hid
+  your global and system git config from every git command it ran, so settings
+  like core.sshCommand, core.autocrlf, safe.directory, url.<base>.insteadOf, and
+  anything an includeIf "gitdir:…" rule pulls in had no effect on unity projects
+  clone, unity projects link vcs, or unity projects create --vcs. That behavior
+  came from the older CLI, which used a pure-JavaScript git implementation that
+  only ever read a repository’s own config; it was never a decision about whose
+  settings should win. These commands now resolve configuration the same way
+  plain git does, including repository-scoped rules keyed on the repository’s
+  own path. Three things are worth knowing. A syntax error in your ~/.gitconfig
+  now surfaces as a failed git operation naming the offending file and line,
+  where these commands previously ignored it; the check for whether git is
+  installed at all is deliberately exempt, so a broken config reports the real
+  problem instead of claiming git is missing. Proxy configuration is
+  deliberately still not allowed to override the proxy the CLI resolved, and
+  --proxy-disable still forces a direct connection, because these requests carry
+  an access token and the CLI’s own resolution is the one you chose through its
+  flags, settings, and OS detection. And two things are unchanged on purpose:
+  the initial commit these commands create is still authored with the identity
+  from your source-control provider rather than your user.name and user.email,
+  so a fresh project's first commit looks the same as before; and when these
+  commands create or push through a provider's REST API with a token the CLI
+  resolved, that credential is still handed to git directly, rather than letting
+  git invoke your credential.helper mid-transfer. The resolution itself does
+  consult your helper, read-only and now with the full repository URL (next
+  entry). Every other path rides your ambient git auth with nothing injected:
+  the URL form of clone and link vcs added in this release, and a repository
+  created through gh, glab, or tea when no token resolves. So the direct
+  hand-off is a property of the resolved-token path, not of the CLI as a whole.
+• Git credentials now resolve per organization, and the CLI is clearer that it
+  does not own them. unity projects clone, unity projects link vcs, and unity
+  projects create --vcs … used to ask your credential helper only which token it
+  had for github.com or gitlab.com, so credential.useHttpPath and a
+  multi-account helper such as Git Credential Manager never engaged: one token
+  per provider, whichever organization you were actually talking to. The lookup
+  now passes the full repository URL, so a helper configured for
+  per-organization credentials returns the right one. Set git config --global
+  credential.useHttpPath true to opt in, since git otherwise withholds the path
+  from helpers. For a project that already exists on disk, link vcs runs the
+  lookup inside the repository, so the per-project credential.useHttpPath and
+  credential.username the Hub writes resolve the same credential in the Hub, in
+  the CLI, and in plain git; a login the helper supplies is also used for the
+  push instead of the provider's generic token login. --git-token,
+  --git-token-stdin, and UNITY_GITHUB_TOKEN / UNITY_GITLAB_TOKEN are unchanged
+  and still win over the helper, so an explicit token stays an explicit token.
+  When nothing is configured and the CLI has to fall back to asking you for a
+  token at the terminal, it now says the credential manager owns it and that
+  nothing you type is stored, and points at Git Credential Manager when no
+  helper is configured at all. That is advice only, on a terminal only: the CLI
+  still installs and reconfigures nothing, and scripted and CI output is
+  byte-for-byte unchanged.
+• Optional usage analytics (opt-in, default off) now record whether a command
+  was run by a person, an AI agent, or a CI job. The CLI ships an agent skill, a
+  unity skill install command, and an MCP server, so a lot of what it does is
+  driven by an agent rather than typed by someone — and until now that was
+  indistinguishable from human use, which made usage data a poor guide to what
+  to improve. Each event carries a coarse human / agent / ci / unknown label
+  plus the handful of signals it was derived from: whether a CI environment was
+  detected, whether stdin and stdout are terminals, the output format, whether
+  the process is serving MCP, and — when one is present — the name of the
+  environment variable that identifies an agent host (never its value). Only MCP
+  mode is certain; the rest is a guess, because a person piping --format json
+  into another tool looks like an agent and an agent running in a terminal looks
+  like a person. It is a label on the data and nothing else: no command behaves
+  differently because of it, and everything stays off entirely when you are
+  opted out (the default). Nothing new about you is collected — no paths,
+  arguments, project names, or environment variable values.
+• Optional usage analytics (opt-in, default off) now record which AI client is
+  driving a command, when one is. The CLI ships an agent skill, unity skill
+  install, unity mcp configure, and an MCP server, so a good deal of what it
+  does is driven by an AI coding tool — but only one event ever recorded which
+  tool, and only for MCP sessions. An agent harness that ran unity install or
+  drove unity shell was indistinguishable from anyone else, which made the data
+  a poor guide to which tools to support well. Each event now carries a coarse
+  client family — claude, cursor, vscode, copilot, codex and a handful more — or
+  an explicit none when no AI client is detected, alongside the channel that
+  identified it: the MCP handshake, a known agent host’s environment variable,
+  or nothing. The channel travels with the label so an unrecognized answer can
+  be explained rather than becoming a mystery bucket. Only the MCP handshake is
+  certain; the environment check is a best-effort match against a short list of
+  variable names that agent tools set, and those names change without notice. It
+  is a label on the data and nothing else: no command behaves differently
+  because of it, and everything stays off entirely when you are opted out (the
+  default). Nothing new about you is collected — never an environment variable’s
+  value, and never the raw name a client reports, only the family it maps to.
+• unity test now tells a failing test apart from a run that never finished.
+  Every non-zero editor exit used to collapse into the same generic failure with
+  exit code 6, so a pipeline could not distinguish "your tests failed" from "a
+  compile error, an expired license, or a crashed editor stopped the run"
+  without matching the error text — which is translated, so the same failure
+  produced a different string on a non-English machine. Failing tests now exit
+  8; everything that stops the run from producing a verdict keeps 6. That is
+  exactly the distinction retry logic needs: retry a 6, never retry an 8. Under
+  --format json the same split appears as errors[0].code — TESTS_FAILED versus
+  TEST_RUN_ERROR, or TEST_TIMED_OUT when --timeout fires — so pipelines that
+  read the envelope get it without parsing prose. If you have a script that
+  treats exit 6 as "tests failed", point it at 8; scripts that only check for a
+  non-zero exit are unaffected.
+• Installing the CLI now records where it went, so the Hub can find it.
+  install.sh, install.ps1, and the install the Hub performs for you each write a
+  small cli-install.json next to the settings the two products already share,
+  naming the binary’s path, version, and layout; uninstalling removes it. This
+  exists because PATH cannot answer that question for a program that is already
+  running: on Windows the user PATH lives in the registry and a running process
+  keeps the copy it started with, on macOS it is wired through a shell profile
+  that an app launched from the Dock never reads, and on Linux it arrives at
+  your next sign-in. So the Hub could install the CLI and then report that no
+  CLI was installed. The file is advisory: anything reading it re-checks that
+  the binary is really there and falls back to searching if not, so deleting the
+  CLI by hand still reads as deleted. Nothing about where the CLI installs has
+  changed, and nothing reads this file except to find the binary.
+
+• unity run, unity test, and unity build now refresh your stored sign-in token
+  before launching the editor, exactly as unity open does. A batch editor on a
+  long-idle machine no longer starts with an expired token — the launch still
+  proceeds regardless, and signed-out and service-account runs are unaffected.
+  The same refresh also lands in the C# CLI port. (Starting the background
+  identity server for these commands — the other half of the beta.4 unity open
+  change — is deferred until it can ship on both CLI binaries together, so those
+  editors can still open the Unity Hub for now.)
+• On Windows on ARM, the CLI now downloads the native arm64 Unity Licensing
+  Client instead of the x64 one. Licensing on those machines no longer pays the
+  emulation overhead. Every platform also moves to Licensing Client 1.18.3.
+  Windows x64, macOS, and Linux keep the client they already used, so nothing
+  changes there.
+• Linking a new project to Unity Cloud is no longer something you have to
+  already know about. unity projects create now asks — after the parent
+  directory, editor version, and template — whether to link the project to a
+  Unity Cloud project. It is the last question and it defaults to No, so
+  pressing Enter through the interview creates an unlinked project exactly as
+  before. Passing --cloud, --cloud-project, or --cloud-org answers it in
+  advance, so you are never asked twice, and a bad --cloud-org still fails
+  immediately rather than after three questions. The question is skipped
+  entirely when it can't be answered usefully: in --json, --format tsv|ndjson,
+  and --quiet, under --non-interactive, when stdout isn't a terminal, and when
+  your current credentials can't create a cloud project (signed out, or
+  service-account auth) — those cases get the pointer below instead of a prompt
+  followed by a failure. Answering Yes can never cost you the project: if the
+  link can't be set up (an expired session, no organization to use), the project
+  is still created, unlinked, and the reason is reported as a warning — the same
+  thing the Hub does, and the same thing this command already did when a link
+  failed after the project was written. --cloud still fails outright, because
+  there the link is something you asked for explicitly rather than a suggestion.
+  When a project is created without a cloud link, projects create and projects
+  new both end by pointing at unity projects link cloud, so the second step is
+  discoverable from the first. That pointer is human output only: json, ndjson,
+  and tsv are byte-for-byte unchanged, and scripts keep reading cloud state from
+  the result envelope.
+
+Fixed
+
+• unity install and unity install-modules show live progress again in an
+  interactive terminal: a per-item progress bar with download size and speed
+  while a payload transfers, an animated bar through the installer phase (which
+  reports no percentage), a validating state while a checksum is verified, and
+  the same progress mirrored to the terminal application itself so supporting
+  terminals (Windows Terminal, ConEmu, WezTerm, Ghostty) can show it on the
+  taskbar. The bars are replaced in place by the final ✓/✗ per-item summary. The
+  default human format previously printed nothing at all between command start
+  and that summary, because progress frames were only emitted under --format
+  ndjson, so a cold multi-gigabyte editor download was indistinguishable from a
+  hang. Machine formats are unchanged: --format ndjson emits the same frames as
+  before, and json/tsv stdout never carries a bar.
+
+• A piped unity install-modules run without an explicit --format now streams
+  NDJSON progress frames and always ends with exactly one machine-readable
+  result frame, matching unity install. Previously the unset format resolved to
+  tsv when stdout was redirected, and the tsv path emitted nothing at all on
+  this command: a scripted module install printed zero bytes and exited 0
+  whether it installed the module, or failed. An explicit --format of any kind
+  behaves exactly as before.
+
+• unity mcp configure on Windows no longer resolves a client's global config to
+  a folder relative to wherever you happen to be standing when the APPDATA and
+  USERPROFILE environment variables are set but empty. The fallback now derives
+  the Roaming AppData location from the OS-reported profile directory, which
+  does not depend on those variables, so Claude Desktop, Cline, and Zed configs
+  always land under the real user profile.
+• Editor and module installs on slow machines are no longer aborted after 30
+  minutes. The installer run was bounded at half the budget the Hub gives the
+  same operation, and a healthy editor install on a heavily loaded machine can
+  legitimately take longer — Windows Defender scanning tens of thousands of
+  extracted files, a contended disk, a busy CI runner. When it did, the install
+  died at the 30-minute mark as INSTALL_ERROR with nothing wrong except the
+  clock, and everything already extracted was thrown away. The bound now matches
+  the Hub's: one hour. It exists to catch a genuinely wedged installer, not to
+  pace a working one.
+• unity editors running and unity pipeline list now count an Editor launched
+  through a wrapper once, instead of once per process in the launch chain.
+  Running the Editor headless on Linux through xvfb-run and dbus-run-session,
+  the ordinary way to give it a display and a session bus, puts the same Unity
+  command line into three processes' argv at once: both wrappers receive it as
+  their own arguments, and both outlive the Editor on purpose, because they tear
+  down Xvfb and the session bus after it exits. Discovery matched the Editor's
+  executable path anywhere in a process's command line, so all three processes
+  matched, and all three carried the same project name, project path, editor
+  version, and port, leaving nothing to tell them apart. One open Editor was
+  reported as three. The commands that connect to a running Editor were affected
+  more sharply: unity command eval read three indistinguishable candidates as an
+  ambiguous choice and refused to run with exit 6, and it did so even when
+  --project-path named the project or the working directory was already inside
+  it, since narrowing by path cannot separate rows that all carry the same path.
+  Discovery now requires a process's own executable to be the Unity binary
+  rather than merely to appear somewhere in its arguments, which is exactly what
+  distinguishes the Editor from whatever launched it. Nothing here was specific
+  to those two wrappers or to Linux: sudo, nohup, timeout, a CI runner's shell,
+  and a cmd.exe /c wrapper on Windows all produced the same miscount. The check
+  is deliberately conservative about the opposite mistake, because hiding a
+  running Editor would be worse than counting one twice: where a process's own
+  executable cannot be read back from the process table, or cannot be recovered
+  from it accurately, the row is still reported rather than dropped. So an
+  Editor installed under a path that defeats that recovery, and any host the
+  scan cannot fully inspect, keeps every Editor it was already finding.
+• The CLI now replaces a Unity Licensing Client it downloaded under an older
+  pin, instead of keeping it forever. Every release pins an exact client build,
+  and the licensing handshake sends a protocol version locked to that build: a
+  client older than the version the CLI sends rejects the handshake outright,
+  which the CLI could only report as "Can't reach the Unity licensing client" on
+  every unity license command, with nothing you could do about it short of
+  deleting the directory by hand. The client was downloaded once and reused on
+  every later run, whatever build it was, because the check that noticed a new
+  pin lived in the Hub and ran in the background there. A machine with the Hub
+  installed was quietly repaired by it; a CI runner never was. The CLI now
+  compares the installed client against the pinned build itself, using the
+  checksum recorded at install time, and re-downloads when they differ. The
+  client being replaced is often still running, since one the CLI launched
+  outlives it on purpose, so the old copy is moved aside rather than deleted
+  where it stands. If it cannot be moved at all the command reports the client
+  unavailable and leaves everything as it was, so a later run retries once the
+  old client has exited, rather than recording the old build as current. An
+  install the CLI cannot date is left alone rather than discarded on suspicion,
+  and a client already matching the pin costs no network at all.
+• unity license return no longer reports "no licenses to return" to someone
+  holding a manually activated license. Licensing Client 1.18.3 introduced a
+  distinct license type for a Named User License activated from an offline
+  license file rather than by signing in, and the return flow only looked for
+  the two types that existed before it, so such a license vanished from the list
+  entirely and the command exited 0 having found nothing. It is listed again,
+  and the attempted return is refused by the licensing client with the
+  explanation it always gave: a manually activated license has no server-side
+  seat to hand back. This matches the Hub, which labels the same license
+  "Manually activated" and says why its return button is unavailable. unity
+  license list and unity license status are unchanged: they never filtered by
+  type, so the new type has always appeared there, in the type column.
+• --git-token-stdin no longer hangs when the pipe feeding it stays open. unity
+  projects clone, unity projects link vcs, and unity projects create --vcs …
+  read the token by consuming stdin to end-of-stream, and a pipe only reaches
+  end-of-stream when whoever holds the other end closes it, which a CI wrapper,
+  a shell that keeps stdin open for the rest of a job, or a parent process that
+  writes the token and moves on all fail to do. The command waited forever, with
+  no output and nothing to time out against, and it waited just the same when
+  the token had already arrived in full. The read now stops at the end of the
+  first line, so a newline-terminated token resolves the moment it lands no
+  matter what the writer does next, and the wait as a whole is bounded: if no
+  complete line and no end-of-stream arrive within 30 seconds, the command falls
+  through to --git-token, UNITY_GITHUB_TOKEN / UNITY_GITLAB_TOKEN, your
+  credential helper, and finally the terminal prompt, exactly as it already did
+  when nothing was piped in at all, so a job with no credential anywhere still
+  ends on the same exit 4 naming the token it needed, rather than occupying a
+  runner until the build times out. A token that arrives without a trailing
+  newline still works when the writer closes the pipe; a half-written one is
+  discarded rather than sent on as a credential. Piping a secret in and closing
+  stdin, which is what a shell pipeline and every documented example already do,
+  behaves exactly as before.
+• unity editors upgrade no longer offers you an Editor your license does not
+  cover. The upgrade check asked the release catalog for every entitlement that
+  exists rather than the ones you hold, so extended-LTS builds showed up as
+  available to everyone: on the 2021.3 line it reported 2021.3.58f1, which needs
+  an extended-LTS entitlement, to users already on the newest patch they can
+  actually run. The check now asks which entitlements your license grants and
+  offers only builds covered by them, so an Editor with nothing newer available
+  reports "Up to date" instead of naming an upgrade that would fail. If you do
+  hold the entitlement you still get those builds, exactly as before. When the
+  licensing client isn't installed or can't answer, the check falls back to
+  showing everything rather than risk hiding a version you own. unity editors
+  info and the release listings are unchanged: they still show the whole
+  archive, because looking a version up is not the same as being offered it.
+• unity editors upgrade --replace no longer removes the editor it failed to
+  replace. The upgrade installs the new editor first and removes the old one
+  second, which is the safe order, but a FAILED install fell through to the
+  removal anyway: the run reported the failure in its exit code and then deleted
+  the working editor, leaving the machine with neither build. The old editor is
+  now removed only once its replacement is actually on disk, and when the
+  removal is withheld the run says which editor it kept and why. --remove-old is
+  the same flag and gets the same fix. Nothing else changes: the
+  install-then-remove order, the exit code, and the fact that --all keeps going
+  after one editor fails are all as they were, and a successful upgrade still
+  removes the old editor exactly as before.
+• Reclaiming a stale settings lock can no longer delete a lock another process
+  just acquired. The Hub and the CLI coordinate writes to their shared settings
+  and caches through small lock directories, and a lock left behind by a crashed
+  process is reclaimed by whoever needs it next. When two of them judged the
+  same leftover stale at the same time, one could remove the fresh lock the
+  other had just created in its place, letting both write at once. The reclaim
+  now takes the stale artifact out of play with a single atomic rename and
+  disposes of the private copy, so a racing reclaimer that arrives second finds
+  nothing to remove and simply waits its turn. Nothing about the lock's on-disk
+  shape or timing changes, so existing Hub and CLI versions interoperate exactly
+  as before. The same fix already shipped in the Hub.
+
+• unity skill install codex installs a real skill instead of pasting the whole
+  thing into your AGENTS.md. It used to merge the entire skill, the overview
+  plus all eight reference files, into a shared AGENTS.md: ~/.codex/AGENTS.md,
+  or the project's own file with --local. Codex reads that file at the start of
+  every session, so one global install added roughly 44,000 tokens of Unity
+  documentation to every Codex session on the machine, in every repository,
+  whether or not the work had anything to do with Unity. The skill now goes
+  where Codex actually looks for skills, ~/.agents/skills/unity-cli (or
+  .agents/skills/unity-cli with --local), as the same directory of files
+  claude-code and grok already receive. Codex reads only the skill's short
+  description up front and loads the body when it decides the skill is relevant,
+  so the per-session cost drops from about 44,000 tokens to about 165. No
+  content is lost; it is the same skill, read on demand. Installing or
+  refreshing also cleans up after the old behavior: the leftover block is
+  removed, the file it came from is named, and every other line in that file
+  survives byte for byte. A file that held nothing but that block is removed
+  rather than left empty. If more than one such block is present the file is
+  left exactly as it is and reported instead, because a second copy can be
+  something you or a tutorial pasted, and guessing which one is Unity's could
+  delete your own content. unity skill refresh migrates an install recorded by
+  an older CLI the same way. --dry-run reports the cleanup without performing
+  it, and --list shows a not-yet-migrated install as out of date rather than as
+  absent.
+
+• unity status sees headless Editors again. An Editor launched in batch mode,
+  the way agents and CI start one, never appeared in unity status, unity
+  pipeline list, or unity editors running, even with its Pipeline server up and
+  answering. Anything gating on unity status therefore concluded the Editor had
+  failed and shut down a healthy session. It did appear if you happened to run
+  the command from the project's own directory, which is why the failure looked
+  intermittent and why unity status --project <path> from anywhere else did not
+  help. The process scan behind all three commands skipped any Unity process
+  whose command line mentioned -batchmode, a filter intended for Unity's own
+  asset-import helpers that never actually matched them: those spell the flag
+  -batchMode, and they are excluded by name instead. So whether your headless
+  Editor was visible came down to the capitalization you happened to type.
+  Import workers are still excluded. One deliberate consequence: the batch
+  Editors that unity build, unity test, and unity command start on your behalf
+  now show up for as long as they run, which is what they always were, running
+  Editors with a live Pipeline server.
+• Downloads the CLI performs are counted again. Installing an editor, adding a
+  module, and fetching a template have gone unreported since the C# rewrite,
+  because the telemetry lived in the code that rewrite replaced, so CLI
+  downloads were missing from Unity's download figures entirely. Each download
+  reports its type, its name, the editor version, the release channel, and a
+  random id generated for that one transfer (no paths, no project names, no
+  account details), alongside the source, surface, and cli_version fields every
+  CLI event already carries. The id pairs a download's start with how it ended,
+  which is what makes a success rate per download type countable at all; it is
+  new for each attempt, so it identifies a transfer and never you or your
+  machine. It is sent only if you have opted in to analytics, and an opted-out
+  run still sends nothing at all. Downloads the Hub performs are unaffected: the
+  Hub has always reported its own, and the CLI stays deliberately silent while
+  it is acting as the Hub's download engine, so no download is ever counted
+  twice.
+
+• An Editor launched by unity open now starts signed in with your CLI session,
+  and no longer launches Unity Hub in the background to look for one. The Editor
+  asks a local identity service for your account when its UI boots; only the Hub
+  used to answer, so a CLI-launched Editor on a Hub-less machine came up
+  anonymous and spawned a Hub to fix that. unity open now starts a small
+  background helper that answers those requests from the same session unity auth
+  login stored — your account, your organization list (so Package Manager
+  entitlements resolve), and the service addresses for your --cloudEnvironment.
+  The helper exits on its own a few minutes after the Editor stops using it,
+  always steps aside when a real Hub is running or starting, and can be disabled
+  entirely by setting UNITY_NO_EDITOR_IDENTITY_SERVER. Signed out, the Editor
+  simply starts anonymous — nothing new is required.
+• unity job wait no longer gives up on a single slow poll. While waiting for a
+  detached job to finish, the CLI checks in with the Editor every half-second,
+  and one of those checks timing out or dropping its connection used to end the
+  whole command with a timeout error — even though the job was still running and
+  would have finished. A slow poll is now treated as what it is, momentary, and
+  the wait keeps going. Your --timeout is the only thing that stops it, and
+  --timeout 0 genuinely waits forever, as documented, instead of ending at the
+  first hiccup. Real answers still end the wait right away: an unknown or
+  expired job, an Editor that does not support jobs, or an auth failure.
+• The CLI no longer logs fake licensing-client launch failures. Almost every
+  command wrote a fixed sequence to logs/cli-log.json — two of them at ERROR
+  level — reporting that it had failed to launch a licensing client at
+  /nonexistent/unity-cli-read-only-probe/Unity.Licensing.Client. There was no
+  such launch: the lines described a probe the CLI never runs, and they appeared
+  even when a real licensing client was present and everything had succeeded.
+  Because they surfaced in unity logs, unity doctor, and the report unity bug
+  uploads, they sent people chasing a failure that was never real. They are
+  gone. Genuine licensing activity — the kind unity license performs — still
+  logs exactly as before.
+• unity build --profile <name> is easier to get right. The name is now matched
+  against the Build Profiles folder case-insensitively, so --profile web finds
+  Web.asset on every platform rather than only on Windows and default macOS —
+  Linux and case-sensitive volumes no longer reject a name that differs only in
+  capitalization. When the profile isn't found, the error now lists the profiles
+  that do exist instead of only naming the folder, so you can see the right name
+  without opening the directory. Two profiles whose filenames differ only in
+  case are reported as a genuine ambiguity, and typing the exact name resolves
+  it. The exit code (6) and the --format json envelope are unchanged.
+• A project created with unity projects create or unity projects new now starts
+  its first Editor session against the cloud environment you selected. The
+  create path built its own Editor command line and left off -cloudEnvironment,
+  so on a non-production environment the new project's Editor talked to the
+  wrong services host — the same class of failure as the one fixed for unity
+  open. The create spawn now passes the resolved environment (the value your
+  --cloudEnvironment global flag feeds, defaulting to production), matching what
+  the Hub does and what unity open already did. On the default production
+  environment nothing changes.
+• unity mcp configure <client> now writes the absolute path to the resolved
+  unity binary instead of the bare command name unity. A desktop MCP client
+  (Claude Desktop, Cursor, VS Code, and the rest) spawns its own process using
+  its own environment, not the shell the configure command ran in, so a bare
+  unity could silently fail to launch if that client's PATH didn't include it,
+  even though it resolved fine at configure time. The written config is now
+  self-sufficient. Three cases the absolute path alone does not cover are
+  handled too. On Windows, npm i -g @unity/cli puts unity.cmd on PATH, and no
+  MCP client can spawn a .cmd file at all, so the real executable is written
+  instead. A relative --project-path is recorded as an absolute path, because a
+  relative one would have been resolved against the client's working directory
+  rather than yours. And an already-broken config is repairable without reading
+  the docs first: re-run unity mcp configure <client> and it will report that an
+  entry exists and offer to update it — for a bare-command entry the prompt now
+  defaults to yes, so pressing Enter fixes it (--yes overwrites without asking).
+  Remember to quit the client completely and relaunch; closing its window leaves
+  the process, and its old config, running. A new Troubleshooting section
+  (docs/mcp.md#troubleshooting) covers this.
+• unity projects create --vcs uvcs and unity projects link vcs --vcs uvcs now
+  check in the whole project on the initial commit, not just Packages/ and
+  ProjectSettings/. The seed check-in only ever looked at those two folders, so
+  anything else the project needed never made it into the first changeset — most
+  visibly a render-pipeline template's ProjectSettings referencing assets under
+  Assets/ — and a collaborator who cloned the new repository got a project that
+  would not open. The scope is now whatever cm status reports as untracked,
+  which is the whole project; item paths are added and checked in over standard
+  input rather than the command line, so a large project does not run into a
+  shell's argument-length limit.
+• Windows modules that ship as installers can be installed without administrator
+  rights. unity install --module linux-mono (and any other module whose payload
+  is a Windows installer) failed with "The requested operation requires
+  elevation" and installed nothing: the CLI launched the module installer
+  directly, and Windows refuses that when the installer asks for more privileges
+  than the CLI has. The editor install already knew to re-run itself elevated in
+  that situation; module installers now do the same, so you get the usual
+  elevation prompt instead of a failure. Nothing changes when the direct launch
+  works, and declining the prompt reports the module as failed the same way the
+  editor install does.
+• Language packs install again. unity install --module language-ja (and every
+  other language-* module, on every platform) downloaded the pack and then
+  refused it with "The installer given is not a valid format". The translation
+  server publishes these packs at addresses that do not end in a filename — the
+  real name, ja.po, arrives with the response — and the CLI was naming the
+  downloaded file after the address, so the installer could not tell what kind
+  of file it had. The download is now named the way the server says, which is
+  also how the Hub has always done it.
+• The Android NDK installs again. unity install <version> -m android (and --cm,
+  which pulls the whole Android tree) failed on every platform with Could not
+  find a part of the path …/AndroidPlayer/NDK/android-ndk-r27c, which read like
+  a broken download but was self-inflicted: the installer cleared the
+  destination folder before moving the extracted files into it, and for the NDK
+  the destination is the folder the extracted files sit in, so clearing it
+  deleted them. Every other module in the Android tree installed fine, which
+  made it look like an NDK-specific download problem. The move now stages the
+  files aside first, so the NDK lands where it should.
+
+• A failed module install now says why. unity install and unity install-modules
+  reported only "N item(s) failed to install." on the console and in
+  logs/cli-log.json, no matter what actually went wrong. The real reason (a path
+  the installer couldn't find, a checksum mismatch, whatever it was) reached
+  --format json/ndjson output but nowhere else, so a failed Android NDK or CMake
+  install looked identical to any other failure in both the human summary and
+  the log file unity bug uploads. --verbose now prints each failed item's own
+  reason under its ✗ line, and the reason is always written to logs/cli-log.json
+  whether or not --verbose is set, so you no longer need a machine-format re-run
+  just to find out which module broke and why.
+
+• unity install works again on Windows without administrator rights. It failed
+  with "Access to the path 'C:\\Program Files\\Unity\\Hub\\Editor\\<version>' is
+  denied" and installed nothing, then reported every module you asked for as a
+  dependency failure. The CLI already knows to ask Windows for elevation, but it
+  was creating the install folder itself first, in the unprivileged process, so
+  it never got as far as asking. That folder is now created by the elevated step
+  that was always meant to do it. Passing --no-elevate is unchanged: it still
+  does the work unprivileged, and a permission problem there is now reported as
+  a proper error naming the path, with a machine-readable code in --format json,
+  instead of the .NET runtime's own English sentence with no code at all. The
+  same clearer reporting covers a denied install location on macOS and Linux.
+
+• Installing the Android module on Linux works again. unity install --module
+  android failed outright on every Linux machine, reporting "Error happened
+  while executing the installer. Aborting." for android and then giving up on
+  the eleven modules queued behind it. Unity ships that module as a .pkg on
+  Linux, which is a XAR archive, and the CLI was unpacking it by handing the
+  file to tar. GNU tar cannot read XAR at all, so nothing was ever extracted.
+  macOS hid the problem completely, because the tar there is a different
+  implementation that happens to understand the format. The CLI now reads the
+  archive itself instead of relying on whichever tar a machine has, so the
+  result no longer depends on the distribution. mac-mono and mac-server, the
+  other two modules shipped this way on Linux, are fixed by the same change.
+  Windows and macOS were never affected.
+
+• On macOS, unity install --module android can now install the Android NDK. It
+  failed with WRONG_INSTALLER and "The installer given is not a valid format and
+  should be a pkg or a po", and because that error arrived partway through the
+  Android dependency chain it took the rest of the chain down with it, leaving
+  PlaybackEngines/AndroidPlayer/SDK empty. The cause is that Unity publishes
+  android-ndk-r27c as a disk image on macOS, on both Intel and Apple Silicon,
+  while the same module is a plain zip on Windows and Linux, and the CLI only
+  knew how to unpack archives. Disk-image payloads are now mounted and unpacked
+  the way the Hub has always done it, so visualstudiocode installs on macOS too.
+  Windows and Linux were never affected. Two things worth knowing if you already
+  hit this: a machine in the failed state still believes those modules are
+  installed, so reach for unity editors verify <version>, which checks the disk
+  rather than that record, and name the modules you want explicitly on a unity
+  install-modules --force run to get them re-attempted. Native and NDK-based
+  Android builds on a CLI-provisioned macOS machine work from this release.
+
+• unity install-modules --force now repairs a module's children, not just the
+  module you named. Forcing a parent already pulled its children into the batch,
+  but they were then dropped again if they were recorded as installed, so only
+  the parent was reinstalled. For the Android SDK that meant nothing useful
+  happened at all: the parent is a tiny placeholder whose entire job is to pull
+  in the real components, so the command extracted the placeholder and exited
+  successfully with an empty SDK folder. Naming a module with --force now
+  re-attempts that module and the children it brings with it. Prerequisites are
+  still left alone, so repairing a single component does not re-download the
+  whole platform, and --no-child-modules still means no children. Without
+  --force, nothing that is already installed is touched, so ordinary installs
+  are unchanged.
+
+• One module failing no longer fails the rest of the batch. unity install
+  --module <m> gave up on every module still queued as soon as any one of them
+  failed, and reported each as "Parent editor install failed" even when the
+  editor had installed perfectly. So a single bad module took unrelated ones
+  down with it: installing the Android and Windows support together, then
+  hitting a problem with an Android component, marked windows-mono as a
+  dependency failure although the two have nothing to do with each other, and
+  re-running it on its own worked fine. It also made a small failure look like a
+  large one. The Android NDK is ordered ahead of the seven Android SDK
+  components, so one NDK problem emptied the whole SDK folder instead of leaving
+  it complete but missing the NDK. Modules now only give up when something they
+  genuinely depend on failed, following both the parent and the sync
+  relationships the release metadata declares, and the reason names the module
+  that actually broke. A failed editor still stops its modules, since none of
+  them can install without it, and it still says so rather than naming a module,
+  which in that case is accurate. Both reasons are now translated, so they
+  appear in your CLI language instead of always in English.
+
+• A module that fails to install is no longer reported as installed. unity
+  install --module <m> recorded every module you asked for as installed the
+  moment the editor itself finished, before any of them had been attempted, and
+  nothing corrected the record when one then failed. So unity modules list
+  claimed a module was present while the disk had nothing, and because that
+  record is what the CLI consults to decide whether a module needs installing,
+  neither documented repair path would re-attempt it: unity editor module add
+  answered "All modules are already installed" and unity install-modules --force
+  exited 0 having done nothing. Each module is now recorded only after its own
+  install succeeds and its files are confirmed on disk, which is what the Hub
+  has always done. A module whose installer exits successfully but writes
+  nothing is reported as failed rather than silently recorded, and the
+  isInstalled field is no longer written at all, because in the Hub's vocabulary
+  it means "already present on this machine" rather than "we installed it". This
+  record is shared with the Hub, so the wrong state was visible there too: an
+  editor the CLI provisioned would show a module as installed in the Hub for the
+  same reason. Machines already in that state are not repaired by this change,
+  so check them with unity editors verify <version>, which probes the disk
+  rather than the record.
+
+• Signing in with unity auth login no longer makes Unity Hub log you out over
+  and over. The CLI and the Hub deliberately share one stored sign-in, and a
+  login recorded two expiry times into it: one for the short-lived access token,
+  and one for the refresh token that quietly renews it. Both were being set from
+  the same value — the access token's, about an hour — so an hour after you used
+  the CLI, the stored sign-in described a session with no way to renew itself.
+  The Hub read that, correctly concluded the session was finished, and signed
+  you out. What made it repeat rather than happen once is that signing out
+  clears the shared sign-in entirely, so the next login wrote the same hour-long
+  refresh window and the whole thing came back. The refresh token now gets the
+  30 days it was always meant to have, which is what the Hub itself uses and
+  what the CLI already used when renewing a session — interactive login was the
+  one place that disagreed. Two things follow. The Hub stops signing itself out
+  after you use the CLI. And the CLI can now renew its own sign-in again: with
+  both times identical, a session went straight from valid to unrecoverable and
+  never passed through the renewable state that automatic refresh needs, so
+  unity commands prompted you to sign in again an hour after you had. Nothing
+  about the sign-in flow itself changes, no command's output or exit code
+  changes, and you do not need to sign out first — the next unity auth login
+  writes the corrected window. If the Hub has been logging you out repeatedly,
+  one more sign-in after upgrading ends it.
+• unity eval no longer cuts off after 5 seconds. Its --timeout has always
+  defaulted to 5 seconds and the CLI has always sent that number to the Editor,
+  but the Pipeline server ignored it, so in practice an eval ran on the server's
+  own 60-second budget. Once 1.0.0-beta.4 started sending the budget properly
+  and com.unity.pipeline began honoring it, that dormant 5 became real, and
+  evals that had worked for months started failing with "Main thread operation
+  timed out after 5000ms" the day you upgraded. The default is now 60 seconds,
+  which is the budget those evals actually had before. unity eval --detach is
+  fixed by the same change: it passed the same default through as the submitted
+  job's budget, so a detached eval, the thing you reach for precisely because
+  the work is slow, was capped at 5 seconds unless you thought to pass
+  --timeout. If you added an explicit --timeout to work around this, it still
+  does exactly what it says and nothing changes for you. Note the two knobs that
+  share the name: --timeout is client-side and in seconds, while the timeout you
+  can pass to the eval command itself after -- is server-side and in
+  milliseconds.
+• unity command <name> --detach no longer kills the background job after 30
+  seconds. --detach exists to run work that outlives the CLI, but the CLI was
+  sending its --timeout value — a short bound meant only for how long to wait on
+  the submission round-trip, defaulting to 30 seconds — through to the Editor as
+  the job's own run budget. So a detached command was capped at 30 seconds, and
+  because the Pipeline server's own default budget is 60 seconds, passing the
+  default actually halved it. The two are now separate: the submission still
+  fails fast against an unreachable Editor, while the detached job itself runs
+  unbounded. --timeout no longer governs a detached command's lifetime at all;
+  use unity job wait <id> to collect the result whenever it finishes.
+• The unity mcp bridge no longer caps every tool at 60 seconds. 1.0.0-beta.4
+  removed that ceiling on the CLI path, so unity eval --timeout 75 completed,
+  but the same work driven by an agent over MCP still died at exactly 60 seconds
+  with "Pipeline command 'eval' timed out after 60000ms". The wall had not
+  fallen, it had moved into the bridge. A timeout argument on the tool call is
+  now honored: it extends both how long the bridge waits and how long the Editor
+  is told the command may run. That second half is what actually unblocks it,
+  because the bridge was previously instructing the Editor to stop at 60 seconds
+  no matter how patient the bridge itself was, which is why no
+  com.unity.pipeline update could lift the limit on its own. A tool call that
+  names no timeout keeps exactly the bound it has today, and the value can only
+  ever raise the ceiling, never lower it, so nothing gets a shorter timeout than
+  before. run_tests, which already had its own budget, is unchanged. Detached
+  jobs are still not reachable over MCP, so work that should outlive a single
+  tool call still needs the CLI (unity eval --detach); that gap is tracked
+  separately.
+• unity run --command no longer fails against an Editor it just started. It
+  booted the Editor, waited for the Pipeline server to answer, and then
+  dispatched immediately, which is too early: the server starts answering as
+  soon as it is listening, while the Editor is still importing assets and
+  compiling scripts. The command was refused with "503 Service Unavailable:
+  Server Busy. The Editor is still settling after startup", reliably rather than
+  occasionally, and even on a nearly empty project. The error told you to wait
+  and retry, but the CLI is the one that started the Editor, so it now does that
+  waiting itself. It keeps checking until the Editor accepts work, bounded by
+  the same startup budget it already used, and gives up with the usual timeout
+  message if the Editor never gets there or exits while it waits. Reusing an
+  Editor you already had open is covered too, since that one can be busy
+  reloading for the same reason. Nothing changes once the Editor is ready, and a
+  failure that is not "still settling" is still reported immediately with its
+  own message and exit code.
+• unity install now explains an unusable download cache instead of failing with
+  a raw runtime error. If the configured cache path is a file rather than a
+  folder, or a symlink pointing at a drive that is not mounted, you get a
+  message naming the path and saying which of the two it is, in your language,
+  with PATH_NOT_A_DIRECTORY or PATH_CREATE_FAILED in --format json. The same
+  check covers the folder the CLI creates for its own downloads.
+• Routine states no longer ask you to file a bug. Several everyday outcomes
+  ended with “Run unity bug to report this issue to Unity” and quietly sent a
+  crash report: the editor a project needs is not installed, the path you passed
+  is not a Unity project, the CLI is already installed where you are installing
+  it. They are now treated as ordinary command failures. The message and exit
+  code are unchanged, the invitation to report a bug is gone, and nothing is
+  sent. Genuine faults still prompt you and are still reported.
+• Filesystem failures now speak your language again. When unity uninstall, unity
+  projects clean, or unity templates pack could not read or write a path, you
+  got the .NET runtime's own English sentence, and --format json reported the
+  generic COMMAND_FAILED. These now render the same translated message the CLI
+  already used elsewhere, naming the path, with the specific code (EACCES,
+  EPERM, EISDIR, ENOENT, ENOTDIR, ENOTEMPTY, EEXIST) in errors[].code so a
+  script can tell a permission problem from a missing file. Exit codes are
+  unchanged.
+• unity pipeline install and unity pipeline upgrade now explain a manifest they
+  cannot write. The Unity Editor keeps Packages/manifest.json open, and on
+  Windows that makes the write fail outright, so the command ended with a raw
+  runtime sentence and filed a crash report. You now get a message naming the
+  file and telling you to close the Editor, with the code
+  PIPELINE_MANIFEST_WRITE_FAILED in --format json. Only a file genuinely held
+  open by another program gets that message: a full disk or a read-only file
+  keeps its own error, because closing the Editor would not fix either.
+• unity status no longer fails when you run it from inside a protected folder.
+  On current macOS, the system refuses an app access to Desktop, Documents,
+  Downloads, and external volumes until you grant it, and the refusal came from
+  reading the working directory itself. So running status from inside your own
+  project there ended the command with an error instead of your editor list, and
+  filed a crash report every time. The working directory is now allowed to be
+  unreadable: status reports every running editor it found and simply skips the
+  step that adds your current folder to the list. Reads of individual project
+  folders tolerate the same refusal. Only access refusals are skipped, so a
+  disk, device, or file-sharing failure still surfaces as an error and is still
+  reported.
+• Your analytics choice is now shared with the Hub for real. The CLI and the Hub
+  have always kept this preference in the same file, but they looked at
+  different entries in it: the Hub records your answer under the account you are
+  signed in to, while the CLI only ever read and wrote an "anonymous" entry. So
+  a Hub user who had already answered got asked a second time by the CLI, and
+  whatever they said there took effect instead. The CLI now reads and writes the
+  entry for the account it is signed in to, exactly as the Hub does, which means
+  three things. If you opted in from the Hub's Privacy and Security settings,
+  the CLI is opted in without asking. If you opted out there, the CLI stays
+  opted out and never asks, so it can't talk you into the opposite of what you
+  already said. And unity analytics opt-in / opt-out now change the same entry
+  the Hub reads, so the choice holds in both places. This matters because the
+  Hub installs the CLI for you on first launch, so you can end up with a CLI you
+  never chose to install and never expected a second consent question from.
+  Signed out, everything works as before: the CLI reads the anonymous entry, and
+  a choice you made while signed out still applies after you sign in, until you
+  change it for that account. The default is still opt-out, a read still never
+  records a choice for you, and other accounts on a shared machine keep theirs
+  untouched.
+• Installing the CLI on Windows no longer damages your user PATH. Both
+  install.ps1 and the install the Hub performs for you read and wrote your PATH
+  through an API that expands variables on the way in and stores plain text on
+  the way out, and two things followed from that — silently, with nothing
+  reporting a failure. Any entry written as a variable,
+  %USERPROFILE%\.dotnet\tools say, came back as the fixed path it happened to
+  point at that moment and stopped following the variable. And the value's type
+  was downgraded from expandable to plain, which is what made it permanent: an
+  entry whose variable the installing process didn't define survived as literal
+  %VAR% text inside a value Windows will never expand again, so that entry
+  quietly pointed nowhere. Your PATH is now read and written directly, keeping
+  its type and copying every entry through exactly as stored. The install
+  location is still added once, still matched regardless of case or a trailing
+  slash, and an entry you added yourself as %LOCALAPPDATA%\Unity\bin is now
+  recognized as that same directory instead of being duplicated alongside it.
+  macOS and Linux were never affected. Entries already frozen by an earlier
+  install are not repaired — if you installed on Windows before this release,
+  check yours in the Windows environment-variable editor (search for
+  "environment variables" from the Start menu).
+• A damaged coordination database no longer aborts unity install. The CLI keeps
+  a small SQLite file so separate unity and Hub processes can see each other's
+  downloads and installs, and if that file went bad partway through a run, the
+  install stopped with a raw engine message such as SQLite Error 11: 'database
+  disk image is malformed'. Those bookkeeping writes are now best-effort: the
+  failure is recorded once in the CLI log and the install carries on, because
+  the file only describes the work rather than performing it. A store that is
+  broken beyond recovery is set aside for the rest of the run, so a long
+  download logs a single line rather than one per progress update. One case
+  still stops the run deliberately. The install lock is what keeps two installs
+  from writing into the same editor directory at once, so when the CLI cannot
+  read it, it refuses instead of guessing.
+• Database errors now explain themselves. When the CLI cannot use one of its
+  local SQLite files, you used to get the database driver's own words and
+  nothing else, in English regardless of your language: SQLite Error 11:
+  'database disk image is malformed'. You now get a sentence describing which
+  kind of problem it is (the file is damaged, it is not writable, or another
+  process is holding it) and what to do about it, in your language, with the
+  original text kept in brackets for bug reports. In --format json these carry a
+  specific error code (LOCAL_STORE_CORRUPT, LOCAL_STORE_UNWRITABLE,
+  LOCAL_STORE_BUSY) instead of the generic COMMAND_FAILED, so a script can tell
+  them apart.
+• unity doctor no longer dies when it cannot read your account store. A
+  read-only file, or an app-data folder left owned by root after a sudo run,
+  used to end the command with a raw engine message like attempt to write a
+  readonly database — from the one command whose whole job is explaining a
+  broken environment. It now reports your sign-in status as unknown, adds a
+  check naming the file and the reason, and still prints everything else: your
+  installed editors, proxy state, environment checks, and recent log. Note it
+  reports unknown rather than "not signed in", because signing in again would
+  fail for exactly the same reason.
+• A coordination database that has already gone bad now repairs itself. The CLI
+  checks the file's integrity when it opens it, and a damaged one is renamed
+  aside and recreated instead of being carried forever. Previously a file that
+  was corrupt at open time stayed that way: every later install quietly fell
+  back to running with no cross-process coordination, and nothing ever fixed the
+  file. Nothing of value is lost, because every row in it describes work that is
+  currently in flight.
+• PowerShell tab completion now actually installs. The completion script has
+  always been valid, but the install command the script itself documented piped
+  its output straight into Invoke-Expression, and PowerShell feeds a native
+  command's output into the pipeline one line at a time — so Invoke-Expression
+  only ever saw a single line of a multi-line script, and no completer ever
+  registered. Both documented forms now thread the output through Out-String
+  first, so the whole script binds at once: unity completion powershell |
+  Out-String | Invoke-Expression. If you added the old command to your
+  PowerShell profile, re-run unity completion powershell to see the new line and
+  replace it in your profile — the old one never took effect, so tab completion
+  starts working the first time you do.
+• unity bug no longer finishes in silence. A submission with a complete, valid
+  flag set printed nothing at all and exited 0 — no confirmation, no error — in
+  every output format except human, which in practice meant silent in CI, in
+  pipes, and whenever output was redirected (the format defaults to tsv when
+  stdout is not a terminal). The command now prints a confirmation in every
+  format: a success line in human, a standard envelope in json, a single result
+  frame in ndjson, and a row in tsv. The payload reports whether the log archive
+  was attached.
+• unity bug now requires you to be signed in, and exits 3 instead of 0 when you
+  are not. Previously a signed-out run reported nothing and appeared to succeed.
+  The check runs after argument validation (so a malformed command still reports
+  the usage error, exit 2) and before any prompting, log collection, or network
+  call, so a signed-out run submits nothing and leaves no temporary files.
+  Service-account authentication is unaffected. If you have CI that invokes
+  unity bug while logged out, it will now fail — authenticate first, or pass
+  service-account credentials.
+• A signed-out failure now reports NOT_SIGNED_IN in --format json and ndjson
+  (and SESSION_EXPIRED when your session lapsed) instead of the generic
+  COMMAND_FAILED. Only the commands that catch the error themselves — unity
+  cloud org list and its neighbours — reported a useful code before; every
+  command that let it surface, unity bug among them, reported COMMAND_FAILED for
+  the identical condition at the identical exit code (3). CI that keys on
+  NOT_SIGNED_IN to trigger re-authentication therefore worked for some commands
+  and silently did not for others. Human output gains the matching Code: line it
+  shows for every other coded error; tsv is unchanged, and no exit code moves.
+• unity bug on Windows no longer fails to attach your logs when run from Git
+  Bash. The archive step resolved tar by scanning PATH, which finds MSYS/Git
+  Bash's GNU tar ahead of the system one; GNU tar reads the archive destination
+  C:\…\unity-bug-….zip as a remote host:path and fails with "Cannot connect to
+  C: resolve failed", so the report was submitted with no logs attached. The CLI
+  now resolves tar (and zip on macOS/Linux) to an absolute known system path
+  first. When archiving does fail, the reason is written to the CLI log instead
+  of only flashing a one-line warning.
+• unity command no longer runs on defaults when it can't understand an argument.
+  Argument forms it couldn't map — a bare key=value, a kebab-case flag whose
+  parameter is camelCase, a positional past the last parameter, a repeated flag
+  — were forwarded verbatim or bound to the wrong parameter; the Editor ignores
+  extra keys and only rejects missing required ones, so the command executed
+  with default values and reported success: true. Real cases: a pointer-click
+  that ran at (0,0), and path=Assets/Foo passed positionally creating a folder
+  literally named path=Assets/Foo. The CLI now checks arguments against the
+  parameter list the Editor already reports and fails with exit 2, listing every
+  offending argument at once and suggesting the intended parameter (--save-path
+  → "Did you mean --savePath?"). Validation runs before the request — and before
+  --detach submits a job, where a mistyped parameter used to print a job id and
+  exit 0. Set UNITY_NO_PARAM_VALIDATION=1 to restore the previous lenient
+  behavior. Name checking only runs when the Editor reports its parameter list,
+  so an unreachable Editor degrades to the old behavior rather than rejecting
+  valid arguments. A bare key=value is reported only when its left side names a
+  parameter the command actually declares, so an argument that legitimately
+  looks like an assignment — a config line, a search query, a snippet of C# — is
+  still passed through as the value it is. The listing filters (--limit,
+  --query, --tag, and the rest) are checked the same way when a command name is
+  given: they are declared CLI options, so they were previously merged into the
+  request after validation and were the one remaining way to send the Editor a
+  parameter it never declared — unity command ping --limit 5 quietly sent a junk
+  limit. They now reach the Editor only if the named command declares them, and
+  unity command find_assets --limit 5 is unaffected.
+• Argument-validation failures on unity command now report INVALID_COMMAND_ARGS
+  in --format json and ndjson, instead of the generic COMMAND_FAILED a genuine
+  Editor-side failure reports. A script or agent reading errors[0].code can now
+  tell “rewrite the invocation and retry” from “give up”, which is the whole
+  point of diagnosing these arguments rather than silently running on defaults.
+  One code covers every defect, because a single run reports all of them at
+  once; the message still names each one. The exit code is unchanged at 2.
+• Argument-shape fixes on unity command, with no opt-out. Separately from the
+  name checking above, malformed argument syntax is now a usage error on every
+  path — including when the Editor's parameter list is unavailable — and
+  UNITY_NO_PARAM_VALIDATION does not suppress it. Most notably, --flag "" now
+  sends an empty string instead of the boolean true: an explicit empty value was
+  indistinguishable from a missing one, so a correctly spelled invocation
+  silently changed its own payload type. Also corrected: a positional no longer
+  overwrites a value you already gave by flag (--message A B kept only B),
+  optional parameters are now addressable positionally instead of being
+  discarded, and --key=, --=value, and a stray -x are reported instead of
+  vanishing.
+• Global CLI options written after the command name are no longer forwarded to
+  the Editor as parameters. unity command ping --format human sent a junk format
+  parameter to a command that declares none; the complete global set (--format,
+  --json, --proxy, --cloudEnvironment, --quiet, --verbose, --non-interactive,
+  --no-banner, --proxy-disable, --log-proxy, --no-log-proxy, --version) is now
+  stripped from the Editor's argument list alongside the command's own options.
+  This matters more than it did before the argument checking above: a global
+  left in the list would no longer merely leak as a junk parameter, it would be
+  rejected as an unknown parameter name, so unity command editor_status --json
+  would fail with exit 2 instead of honoring the global. An Editor command that
+  genuinely declares one of those names is still reachable after --.
+• unity run --command no longer drops every command argument when the line is
+  typed at the unity shell prompt. The arguments after -- were located by
+  scanning the process's own argv, which inside the shell is the shell's argv
+  and contains no -- separator, so the command ran with no arguments at all and
+  reported success. They now come from the parsed command line, which is correct
+  in both cases.
+
+• Corrected the 1.0.0-beta.4 entry below (and docs/output-formats.md) about
+  where the UNITY_TOKEN_* error codes actually surface. Traced command by
+  command (CLI-749): as things stand today, none of the four reach errors[].code
+  on any shipped command. The earlier wording implied unity cloud project list
+  was an exception that let the code through, when in fact it reports its own
+  CLOUD_PROJECT_LIST_FAILED like every other command that touches the
+  Unity-token exchange. unity cloud org list, cloud org set-default, projects
+  link cloud, and projects create all catch the failure and report their own
+  code the same way; the Unity Version Control family reclassifies it to
+  SESSION_EXPIRED/UVCS_TOKEN_UNAVAILABLE; and unity cloud-pipeline/unity collab
+  never construct the error at all, because they read a separately-cached token
+  and silently degrade instead of throwing. The translated wording from CLI-744
+  still reaches message and human output wherever the failure surfaces: only the
+  machine-readable code was misdescribed. No command's behavior changes.
+
+Security
+
+• Shell completion scripts now escape the strings they interpolate instead of
+  writing them raw into a quoted context. unity completion bash's per-option and
+  per-command value lists, unity completion fish's command and option
+  descriptions, and unity completion powershell's command names all build a line
+  of script around a name, alias, or choice; an unescaped $, backtick, or single
+  quote there could have run as a command substitution or broken out of its
+  quoting the next time you pressed Tab. Every name, alias, and description the
+  CLI ships today is a fixed string, so this closes a defense-in-depth gap
+  rather than an active one, and nothing about what the completion scripts do
+  has changed.
+• Progress spinners and the update check can no longer be used to spoof your
+  terminal. Spinner labels are written directly to the terminal, and one of them
+  carries the version string from the update manifest the CLI downloads. A
+  hostile or tampered manifest could put terminal control sequences in that
+  version (a screen-clear, a line rewrite, a window-title change) and the
+  spinner would have painted them as-is. The manifest's version is now rejected
+  at the point it is read unless it is a real version number, so a tampered one
+  is treated as "no update" and never reaches any output, and every spinner
+  label is stripped of control and escape sequences before it is drawn.

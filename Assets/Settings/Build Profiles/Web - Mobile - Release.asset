@@ -47,7 +47,7 @@ MonoBehaviour:
         m_InsightsSettingsContainer:
           m_BuildProfileEngineDiagnosticsState: 2
         m_AdaptivePerformanceEnabled: 0
-        m_CodeOptimization: 3
+        m_CodeOptimization: 1
         m_WebGLClientBrowserPath: 
         m_WebGLClientBrowserType: 0
         m_WebGLTextureSubtarget: 4
@@ -58,7 +58,7 @@ BuildProfilePlayerSettings:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_Name: Player Settings
-  serializedVersion: 31
+  serializedVersion: 32
   productGUID: 77378dfbf6b40414783a0ca2ac358c02
   AndroidProfiler: 0
   AndroidFilterTouchesWhenObscured: 0
@@ -68,7 +68,7 @@ BuildProfilePlayerSettings:
   useOnDemandResources: 0
   accelerometerFrequency: 60
   companyName: DefaultCompany
-  productName: occlusion tests
+  productName: cubits
   defaultCursor: {fileID: 0}
   cursorHotspot: {x: 0, y: 0}
   m_SplashScreenBackgroundColor: {r: 0.13725491, g: 0.12156863, b: 0.1254902, a: 1}
@@ -206,7 +206,8 @@ BuildProfilePlayerSettings:
   visionOSBundleVersion: 1.0
   tvOSBundleVersion: 1.0
   bundleVersion: 0.1.0
-  preloadedAssets: []
+  preloadedAssets:
+  - {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
   metroInputSource: 0
   wsaTransparentSwapchain: 0
   xboxOneDisableKinectGpuReservation: 1
@@ -314,7 +315,6 @@ BuildProfilePlayerSettings:
   VisionOSManualSigningProvisioningProfileType: 0
   appleEnableAutomaticSigning: 0
   iOSRequireARKit: 0
-  iOSAutomaticallyDetectAndAddCapabilities: 1
   appleEnableProMotion: 0
   shaderPrecisionModel: 0
   clonedFromGUID: 3c72c65a16f0acb438eed22b8b16c24a

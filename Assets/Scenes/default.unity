@@ -172,7 +172,7 @@ MeshRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1036100322}
   m_Enabled: 1
-  m_CastShadows: 1
+  m_CastShadows: 3
   m_ReceiveShadows: 1
   m_DynamicOccludee: 1
   m_StaticShadowCaster: 0
@@ -251,7 +251,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::VoxelPlayerController
   cam: {fileID: 1802050283}
   moveSpeed: 6
-  jumpHeight: 1.5
+  jumpHeight: 1.9
   gravity: -20
   mouseSensitivity: 2
   digRepeatInterval: 2
@@ -279,7 +279,7 @@ Rigidbody:
   m_ImplicitCom: 1
   m_ImplicitTensor: 1
   m_UseGravity: 1
-  m_IsKinematic: 0
+  m_IsKinematic: 1
   m_Interpolate: 0
   m_Constraints: 80
   m_CollisionDetection: 0
@@ -352,7 +352,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f83ed9c8c05492449ab10d24362f94ed, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ChunkedVoxelTerrain
-  material: {fileID: 2100000, guid: 17f3557cc672031449c637759bb372e7, type: 2}
+  material: {fileID: 2100000, guid: 19bdf157618ad2d489757c8910ae9a8b, type: 2}
   player: {fileID: 1036100326}
   cam: {fileID: 1802050283}
 --- !u!1 &1802050280
@@ -486,7 +486,7 @@ Transform:
   m_GameObject: {fileID: 1802050280}
   serializedVersion: 2
   m_LocalRotation: {x: -0.23163289, y: -0.020330358, z: 0.0048511443, w: -0.97257876}
-  m_LocalPosition: {x: 0.009202719, y: 2.5448704, z: -1.9336939}
+  m_LocalPosition: {x: 0.009202719, y: 0.712, z: 0.234}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []

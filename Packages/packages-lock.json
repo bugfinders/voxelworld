@@ -1,5 +1,14 @@
 {
   "dependencies": {
+    "com.bezi.sidekick": {
+      "version": "file:com.bezi.sidekick",
+      "depth": 0,
+      "source": "embedded",
+      "dependencies": {
+        "com.unity.nuget.newtonsoft-json": "3.2.1",
+        "com.unity.timeline": "1.6.0"
+      }
+    },
     "com.unity.ai.navigation": {
       "version": "2.0.14",
       "depth": 0,
@@ -16,7 +25,7 @@
       "dependencies": {}
     },
     "com.unity.collab-proxy": {
-      "version": "2.12.4",
+      "version": "2.13.6",
       "depth": 0,
       "source": "registry",
       "dependencies": {},
@@ -128,7 +137,7 @@
       }
     },
     "com.unity.searcher": {
-      "version": "4.9.4",
+      "version": "4.9.5",
       "depth": 2,
       "source": "registry",
       "dependencies": {},
