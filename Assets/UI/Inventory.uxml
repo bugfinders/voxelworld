@@ -39,10 +39,23 @@
             <ui:VisualElement name="inventory-panel-header" class="inventory-panel-header">
                 <ui:Label name="inventory-panel-title" text="Inventory" class="inventory-panel-title" />
                 <ui:Button name="inventory-panel-toggle" text="Open (Tab)" class="inventory-panel-toggle" />
+                <ui:Button name="inventory-crafting-toggle" text="Crafting" class="inventory-panel-toggle" />
             </ui:VisualElement>
             <ui:ScrollView name="inventory-additional-scroll" class="inventory-additional-scroll">
                 <ui:VisualElement name="inventory-additional-content" class="inventory-additional-content" />
             </ui:ScrollView>
+            <ui:VisualElement name="crafting-content" class="crafting-content">
+                <ui:VisualElement name="crafting-toolbar" class="crafting-toolbar">
+                    <ui:Button name="crafting-inventory-return" text="Inventory" class="crafting-return-button" />
+                    <ui:VisualElement name="crafting-station-selector" class="crafting-station-selector">
+                        <ui:Button name="crafting-station-inventory" text="Hand Crafting" class="crafting-station-button" />
+                        <ui:Button name="crafting-station-workbench" text="Workbench" class="crafting-station-button" />
+                    </ui:VisualElement>
+                </ui:VisualElement>
+                <ui:ScrollView name="crafting-recipe-scroll" class="crafting-recipe-scroll">
+                    <ui:VisualElement name="crafting-recipe-list" class="crafting-recipe-list" />
+                </ui:ScrollView>
+            </ui:VisualElement>
         </ui:VisualElement>
     </ui:VisualElement>
 </ui:UXML>

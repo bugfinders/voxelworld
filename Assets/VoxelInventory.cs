@@ -104,18 +104,16 @@ public class VoxelInventory : MonoBehaviour
     /// </summary>
     public bool TryAddAdditionalItem(string itemId, string displayName, int amount, Texture2D icon)
     {
-        if (!isInitialized || string.IsNullOrWhiteSpace(itemId) || amount <= 0)
+        if (!CanAcceptGenericItem(itemId, amount))
             return false;
 
         EnsureAdditionalSlots();
         string normalizedId = itemId.Trim();
-        for (int i = 0; i < additionalSlots.Count; i++)
+        InventorySlotData existingSlot = FindSlotByItemId(additionalSlots, normalizedId);
+        if (existingSlot != null)
         {
-            InventorySlotData existingSlot = additionalSlots[i];
-            if (existingSlot == null || existingSlot.IsEmpty)
-                continue;
-            if (!string.Equals(existingSlot.ItemId, normalizedId, StringComparison.Ordinal))
-                continue;
+            if (!CanIncreaseCount(existingSlot.Count, amount))
+                return false;
 
             existingSlot.SetCount(existingSlot.Count + amount);
             NotifyInventoryChanged();
@@ -127,6 +125,170 @@ public class VoxelInventory : MonoBehaviour
             return false;
 
         additionalSlots[emptyIndex] = new InventorySlotData(normalizedId, displayName, amount, icon);
+        NotifyInventoryChanged();
+        return true;
+    }
+
+    /// <summary>
+    /// Returns the total count of an item across the hotbar and additional inventory.
+    /// </summary>
+    public int GetItemCount(string itemId)
+    {
+        if (!isInitialized || string.IsNullOrWhiteSpace(itemId))
+            return 0;
+
+        EnsureHotbarSlots();
+        EnsureAdditionalSlots();
+        string normalizedId = itemId.Trim();
+        long total = (long)GetItemCount(hotbarSlots, normalizedId) + GetItemCount(additionalSlots, normalizedId);
+        return total >= int.MaxValue ? int.MaxValue : (int)total;
+    }
+
+    /// <summary>
+    /// Returns whether an item can be stored without consuming any existing items.
+    /// </summary>
+    public bool CanStoreItem(string itemId, int amount)
+    {
+        if (!CanAcceptGenericItem(itemId, amount))
+            return false;
+
+        EnsureHotbarSlots();
+        EnsureAdditionalSlots();
+        string normalizedId = itemId.Trim();
+        InventorySlotData existingSlot = FindSlotByItemId(normalizedId);
+        if (existingSlot != null)
+            return CanIncreaseCount(existingSlot.Count, amount);
+
+        return FindEmptySlotIndex(hotbarSlots) >= 0 || FindEmptySlotIndex(additionalSlots) >= 0;
+    }
+
+    /// <summary>
+    /// Returns whether an item can fit after the supplied recipe consumes its ingredients.
+    /// </summary>
+    public bool CanStoreItem(string itemId, int amount, CraftingRecipe pendingRecipe)
+    {
+        if (pendingRecipe == null || !pendingRecipe.IsValid())
+            return CanStoreItem(itemId, amount);
+
+        List<string> ingredientIds = new List<string>();
+        List<int> ingredientAmounts = new List<int>();
+        for (int i = 0; i < pendingRecipe.Ingredients.Count; i++)
+        {
+            CraftingIngredient ingredient = pendingRecipe.Ingredients[i];
+            if (ingredient == null || !ingredient.IsValid())
+                return false;
+
+            int existingIndex = ingredientIds.IndexOf(ingredient.ItemId);
+            if (existingIndex < 0)
+            {
+                ingredientIds.Add(ingredient.ItemId);
+                ingredientAmounts.Add(ingredient.Amount);
+            }
+            else
+            {
+                long aggregate = (long)ingredientAmounts[existingIndex] + ingredient.Amount;
+                if (aggregate > int.MaxValue)
+                    return false;
+                ingredientAmounts[existingIndex] = (int)aggregate;
+            }
+        }
+
+        for (int i = 0; i < ingredientIds.Count; i++)
+        {
+            if (GetItemCount(ingredientIds[i]) < ingredientAmounts[i])
+                return false;
+        }
+
+        return CanStoreItemAfterConsumption(itemId, amount, ingredientIds, ingredientAmounts);
+    }
+
+    /// <summary>
+    /// Merges or inserts a generic item, preferring hotbar slots for new items.
+    /// </summary>
+    public bool TryAddItem(string itemId, string displayName, int amount, Texture2D icon)
+    {
+        if (!CanAcceptGenericItem(itemId, amount))
+            return false;
+
+        EnsureHotbarSlots();
+        EnsureAdditionalSlots();
+        string normalizedId = itemId.Trim();
+        InventorySlotData existingSlot = FindSlotByItemId(normalizedId);
+        if (existingSlot != null)
+        {
+            if (!CanIncreaseCount(existingSlot.Count, amount))
+                return false;
+
+            existingSlot.SetCount(existingSlot.Count + amount);
+            NotifyInventoryChanged();
+            return true;
+        }
+
+        List<InventorySlotData> targetList = hotbarSlots;
+        int emptyIndex = FindEmptySlotIndex(hotbarSlots);
+        if (emptyIndex < 0)
+        {
+            targetList = additionalSlots;
+            emptyIndex = FindEmptySlotIndex(additionalSlots);
+        }
+
+        if (emptyIndex < 0)
+            return false;
+
+        targetList[emptyIndex] = new InventorySlotData(normalizedId, displayName, amount, icon);
+        NotifyInventoryChanged();
+        return true;
+    }
+
+    /// <summary>
+    /// Consumes all recipe ingredients and inserts the output as one atomic inventory change.
+    /// </summary>
+    public bool TryCraft(CraftingRecipe recipe)
+    {
+        if (!isInitialized || recipe == null || !recipe.IsValid())
+            return false;
+
+        EnsureHotbarSlots();
+        EnsureAdditionalSlots();
+        List<string> ingredientIds = new List<string>();
+        List<int> ingredientAmounts = new List<int>();
+        for (int i = 0; i < recipe.Ingredients.Count; i++)
+        {
+            CraftingIngredient ingredient = recipe.Ingredients[i];
+            if (ingredient == null || string.IsNullOrWhiteSpace(ingredient.ItemId) || ingredient.Amount <= 0)
+                return false;
+
+            string normalizedId = ingredient.ItemId.Trim();
+            int existingIndex = ingredientIds.IndexOf(normalizedId);
+            if (existingIndex < 0)
+            {
+                ingredientIds.Add(normalizedId);
+                ingredientAmounts.Add(ingredient.Amount);
+            }
+            else
+            {
+                long aggregate = (long)ingredientAmounts[existingIndex] + ingredient.Amount;
+                if (aggregate > int.MaxValue)
+                    return false;
+                ingredientAmounts[existingIndex] = (int)aggregate;
+            }
+        }
+
+        for (int i = 0; i < ingredientIds.Count; i++)
+        {
+            if (GetItemCount(ingredientIds[i]) < ingredientAmounts[i])
+                return false;
+        }
+
+        if (!CanStoreItemAfterConsumption(recipe.OutputItemId, recipe.OutputAmount, ingredientIds, ingredientAmounts))
+            return false;
+
+        for (int i = 0; i < ingredientIds.Count; i++)
+            ConsumeItem(ingredientIds[i], ingredientAmounts[i]);
+
+        if (!TryAddItemWithoutNotify(recipe.OutputItemId, recipe.OutputDisplayName, recipe.OutputAmount, recipe.OutputIcon))
+            return false;
+
         NotifyInventoryChanged();
         return true;
     }
@@ -291,6 +453,149 @@ public class VoxelInventory : MonoBehaviour
     {
         if (isInitialized)
             InventoryChanged?.Invoke();
+    }
+
+    private bool CanAcceptGenericItem(string itemId, int amount)
+    {
+        return isInitialized && !string.IsNullOrWhiteSpace(itemId) && amount > 0;
+    }
+
+    private static bool CanIncreaseCount(int currentCount, int amount)
+    {
+        return currentCount >= 0 && amount > 0 && (long)currentCount + amount <= int.MaxValue;
+    }
+
+    private static int GetItemCount(List<InventorySlotData> slots, string itemId)
+    {
+        long total = 0;
+        if (slots == null)
+            return 0;
+
+        for (int i = 0; i < slots.Count; i++)
+        {
+            InventorySlotData slot = slots[i];
+            if (slot == null || slot.IsEmpty || !string.Equals(slot.ItemId, itemId, StringComparison.Ordinal))
+                continue;
+
+            total += slot.Count;
+            if (total >= int.MaxValue)
+                return int.MaxValue;
+        }
+
+        return (int)total;
+    }
+
+    private bool CanStoreItemAfterConsumption(string itemId, int amount, List<string> ingredientIds, List<int> ingredientAmounts)
+    {
+        if (!CanAcceptGenericItem(itemId, amount))
+            return false;
+
+        List<InventorySlotData> allSlots = new List<InventorySlotData>(HotbarSlotCount + AdditionalSlotCount);
+        List<int> remainingCounts = new List<int>(HotbarSlotCount + AdditionalSlotCount);
+        AddSlotsForSimulation(hotbarSlots, allSlots, remainingCounts);
+        AddSlotsForSimulation(additionalSlots, allSlots, remainingCounts);
+
+        for (int ingredientIndex = 0; ingredientIndex < ingredientIds.Count; ingredientIndex++)
+        {
+            int remainingToConsume = ingredientAmounts[ingredientIndex];
+            for (int slotIndex = 0; slotIndex < allSlots.Count && remainingToConsume > 0; slotIndex++)
+            {
+                InventorySlotData slot = allSlots[slotIndex];
+                if (slot == null || !string.Equals(slot.ItemId, ingredientIds[ingredientIndex], StringComparison.Ordinal))
+                    continue;
+
+                int consumed = Mathf.Min(remainingCounts[slotIndex], remainingToConsume);
+                remainingCounts[slotIndex] -= consumed;
+                remainingToConsume -= consumed;
+            }
+        }
+
+        string normalizedId = itemId.Trim();
+        for (int i = 0; i < allSlots.Count; i++)
+        {
+            if (remainingCounts[i] > 0 && string.Equals(allSlots[i].ItemId, normalizedId, StringComparison.Ordinal))
+                return CanIncreaseCount(remainingCounts[i], amount);
+        }
+
+        for (int i = 0; i < remainingCounts.Count; i++)
+        {
+            if (remainingCounts[i] <= 0)
+                return true;
+        }
+
+        return false;
+    }
+
+    private static void AddSlotsForSimulation(List<InventorySlotData> slots, List<InventorySlotData> allSlots, List<int> remainingCounts)
+    {
+        if (slots == null)
+            return;
+
+        for (int i = 0; i < slots.Count; i++)
+        {
+            InventorySlotData slot = slots[i];
+            allSlots.Add(slot);
+            remainingCounts.Add(slot == null || slot.IsEmpty ? 0 : slot.Count);
+        }
+    }
+
+    private void ConsumeItem(string itemId, int amount)
+    {
+        int consumed = ConsumeItemFromSlots(hotbarSlots, itemId, amount);
+        ConsumeItemFromSlots(additionalSlots, itemId, amount - consumed);
+    }
+
+    private static int ConsumeItemFromSlots(List<InventorySlotData> slots, string itemId, int amount)
+    {
+        if (slots == null || amount <= 0)
+            return 0;
+
+        int consumedTotal = 0;
+        for (int i = 0; i < slots.Count && consumedTotal < amount; i++)
+        {
+            InventorySlotData slot = slots[i];
+            if (slot == null || slot.IsEmpty || !string.Equals(slot.ItemId, itemId, StringComparison.Ordinal))
+                continue;
+
+            int consumed = Mathf.Min(slot.Count, amount - consumedTotal);
+            slot.SetCount(slot.Count - consumed);
+            consumedTotal += consumed;
+            if (slot.Count == 0)
+                slot.Clear();
+        }
+
+        return consumedTotal;
+    }
+
+    private bool TryAddItemWithoutNotify(string itemId, string displayName, int amount, Texture2D icon)
+    {
+        if (!CanAcceptGenericItem(itemId, amount))
+            return false;
+
+        string normalizedId = itemId.Trim();
+        InventorySlotData existingSlot = FindSlotByItemId(normalizedId);
+        if (existingSlot != null)
+        {
+            if (!CanIncreaseCount(existingSlot.Count, amount))
+                return false;
+
+            existingSlot.SetCount(existingSlot.Count + amount);
+            return true;
+        }
+
+        List<InventorySlotData> targetList = hotbarSlots;
+        int emptyIndex = FindEmptySlotIndex(hotbarSlots);
+        if (emptyIndex < 0)
+        {
+            targetList = additionalSlots;
+            emptyIndex = FindEmptySlotIndex(additionalSlots);
+        }
+
+        if (emptyIndex < 0)
+            return false;
+
+        targetList[emptyIndex] = new InventorySlotData(normalizedId, displayName, amount, icon);
+        return true;
     }
 
     private static InventorySlotData CreateEmptySlot()

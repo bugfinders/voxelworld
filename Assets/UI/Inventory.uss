@@ -176,3 +176,121 @@
     flex-wrap: wrap;
     justify-content: flex-start;
 }
+
+
+.crafting-content {
+    display: none;
+    flex-grow: 1;
+    min-height: 70px;
+}
+
+.crafting-content--visible {
+    display: flex;
+}
+
+.crafting-toolbar {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
+
+.crafting-return-button,
+.crafting-station-button {
+    min-height: 28px;
+    padding-left: 8px;
+    padding-right: 8px;
+    color: var(--inventory-text-color);
+}
+
+.crafting-station-selector {
+    flex-direction: row;
+    align-items: center;
+}
+
+.crafting-station-button {
+    margin-left: 4px;
+}
+
+.crafting-station-button.crafting-station--active {
+    border-left-color: var(--inventory-selected-border);
+    border-right-color: var(--inventory-selected-border);
+    border-top-color: var(--inventory-selected-border);
+    border-bottom-color: var(--inventory-selected-border);
+    background-color: rgb(70, 67, 42);
+}
+
+.crafting-station-button.crafting-station--locked {
+    opacity: 0.38;
+}
+
+.crafting-recipe-scroll {
+    flex-grow: 1;
+    min-height: 60px;
+}
+
+.crafting-recipe-list {
+    width: 100%;
+    padding-right: 4px;
+}
+
+.crafting-recipe-card {
+    flex-direction: column;
+    margin-bottom: 6px;
+    padding: 8px;
+    background-color: rgba(31, 39, 53, 0.96);
+    border-left-width: 1px;
+    border-right-width: 1px;
+    border-top-width: 1px;
+    border-bottom-width: 1px;
+    border-left-color: rgba(170, 185, 205, 0.45);
+    border-right-color: rgba(170, 185, 205, 0.45);
+    border-top-color: rgba(170, 185, 205, 0.45);
+    border-bottom-color: rgba(170, 185, 205, 0.45);
+}
+
+.crafting-recipe-card--unavailable {
+    opacity: 0.6;
+}
+
+.crafting-recipe-output {
+    flex-direction: row;
+    align-items: center;
+    min-height: 42px;
+}
+
+.crafting-recipe-output-icon {
+    width: 38px;
+    height: 38px;
+    margin-right: 8px;
+}
+
+.crafting-recipe-output-text {
+    flex-grow: 1;
+    color: var(--inventory-text-color);
+    font-size: 15px;
+    -unity-font-style: bold;
+}
+
+.crafting-recipe-ingredients {
+    margin-top: 4px;
+    margin-bottom: 6px;
+}
+
+.crafting-recipe-ingredient {
+    color: rgb(215, 222, 232);
+    font-size: 12px;
+}
+
+.crafting-recipe-ingredient--missing {
+    color: rgb(236, 120, 112);
+}
+
+.crafting-recipe-button {
+    min-height: 28px;
+    color: var(--inventory-text-color);
+}
+
+.crafting-recipe-button:disabled {
+    opacity: 0.4;
+}

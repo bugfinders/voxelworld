@@ -24,6 +24,12 @@ public class ChunkedVoxelTerrain : MonoBehaviour
 
     private const int CHUNK_SIZE = 25;
     private const string DIRT_MATERIAL_NAME = "Dirt";
+    private const string WOOD_MATERIAL_NAME = "Wood";
+    private const string LEAVES_MATERIAL_NAME = "Leaves";
+    private const int TREE_GRID_SPACING = 24;
+    private const int TREE_TRUNK_HEIGHT = 4;
+    private const int TREE_CANOPY_RADIUS = 2;
+    private const float TREE_SPAWN_CHANCE = 0.12f;
     private Vector3 currentVoxel = Vector3.zero;
     private bool hasTarget;
 
@@ -227,6 +233,93 @@ public class ChunkedVoxelTerrain : MonoBehaviour
                     : GetSubsurfaceMaterialIndex(x, y, z);
             }
         }
+
+        GenerateTrees();
+    }
+
+    private void GenerateTrees()
+    {
+        int woodMaterialIndex = FindMaterialIndex(WOOD_MATERIAL_NAME);
+        int leavesMaterialIndex = FindMaterialIndex(LEAVES_MATERIAL_NAME);
+        if (woodMaterialIndex < 0 || leavesMaterialIndex < 0)
+        {
+            Debug.LogWarning("Trees could not be generated because Wood or Leaves is not configured.");
+            return;
+        }
+
+        int centerX = SIZE_X / 2;
+        int centerZ = SIZE_Z / 2;
+        for (int x = TREE_GRID_SPACING / 2; x < SIZE_X; x += TREE_GRID_SPACING)
+        for (int z = TREE_GRID_SPACING / 2; z < SIZE_Z; z += TREE_GRID_SPACING)
+        {
+            if (Mathf.Abs(x - centerX) < TREE_GRID_SPACING || Mathf.Abs(z - centerZ) < TREE_GRID_SPACING)
+                continue;
+
+            uint hash = (uint)(x * 92837111 ^ z * 689287499);
+            float roll = hash / (float)uint.MaxValue;
+            if (roll > TREE_SPAWN_CHANCE)
+                continue;
+
+            int surfaceHeight = FindSurfaceHeight(x, z);
+            if (surfaceHeight < MIN_HEIGHT || surfaceHeight + TREE_TRUNK_HEIGHT + TREE_CANOPY_RADIUS >= MAX_HEIGHT)
+                continue;
+
+            PlaceTree(x, surfaceHeight + 1, z, woodMaterialIndex, leavesMaterialIndex);
+        }
+    }
+
+    private int FindSurfaceHeight(int x, int z)
+    {
+        for (int y = MAX_HEIGHT; y >= MIN_HEIGHT; y--)
+        {
+            if (solid[x, y, z])
+                return y;
+        }
+
+        return -1;
+    }
+
+    private void PlaceTree(int x, int baseY, int z, int woodMaterialIndex, int leavesMaterialIndex)
+    {
+        for (int y = 0; y < TREE_TRUNK_HEIGHT; y++)
+        {
+            int trunkY = baseY + y;
+            solid[x, trunkY, z] = true;
+            voxelMaterials[x, trunkY, z] = woodMaterialIndex;
+        }
+
+        int canopyBaseY = baseY + TREE_TRUNK_HEIGHT - 1;
+        for (int offsetY = 0; offsetY <= TREE_CANOPY_RADIUS; offsetY++)
+        for (int offsetX = -TREE_CANOPY_RADIUS; offsetX <= TREE_CANOPY_RADIUS; offsetX++)
+        for (int offsetZ = -TREE_CANOPY_RADIUS; offsetZ <= TREE_CANOPY_RADIUS; offsetZ++)
+        {
+            int distance = Mathf.Abs(offsetX) + Mathf.Abs(offsetZ);
+            if (distance > TREE_CANOPY_RADIUS + 1 || (offsetY == 0 && distance == 0))
+                continue;
+
+            int leafX = x + offsetX;
+            int leafY = canopyBaseY + offsetY;
+            int leafZ = z + offsetZ;
+            if (leafX < 0 || leafX >= SIZE_X || leafY < 0 || leafY > MAX_HEIGHT || leafZ < 0 || leafZ >= SIZE_Z)
+                continue;
+
+            solid[leafX, leafY, leafZ] = true;
+            voxelMaterials[leafX, leafY, leafZ] = leavesMaterialIndex;
+        }
+    }
+
+    private int FindMaterialIndex(string materialName)
+    {
+        if (materials == null)
+            return -1;
+
+        for (int i = 0; i < materials.Length; i++)
+        {
+            if (materials[i] != null && materials[i].name == materialName)
+                return i;
+        }
+
+        return -1;
     }
 
     private int GetSubsurfaceMaterialIndex(int x, int y, int z)

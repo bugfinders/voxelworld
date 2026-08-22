@@ -41,9 +41,17 @@ public class InventorySlotData
     public Texture2D Icon => icon;
 
     /// <summary>
-    /// Gets whether the slot has no item identifier.
+    /// Gets whether the slot has no usable item identifier or count.
     /// </summary>
-    public bool IsEmpty => string.IsNullOrWhiteSpace(itemId);
+    public bool IsEmpty => string.IsNullOrWhiteSpace(itemId) || count <= 0;
+
+    internal void Clear()
+    {
+        itemId = string.Empty;
+        displayName = string.Empty;
+        count = 0;
+        icon = null;
+    }
 
     internal void SetCount(int value)
     {
@@ -55,7 +63,11 @@ public class InventorySlotData
         itemId = NormalizeItemId(itemId);
         displayName = NormalizeDisplayName(displayName, itemId);
         count = Mathf.Max(0, count);
+        if (string.IsNullOrEmpty(itemId) || count == 0)
+            Clear();
     }
+
+
 
     private static string NormalizeItemId(string value)
     {
