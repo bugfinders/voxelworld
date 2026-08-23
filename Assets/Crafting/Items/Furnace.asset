@@ -17,5 +17,5 @@ MonoBehaviour:
   icon: {fileID: 0}
   voxelMaterial: {fileID: 2100000, guid: 3b4ad0db1e56acd439513fd1326a5323, type: 2}
   blocksTopPlacement: 1
-  opensCraftingMenu: 0
-  craftingStation: 0
+  opensCraftingMenu: 1
+  craftingStation: 1

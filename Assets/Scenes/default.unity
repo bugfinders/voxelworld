@@ -446,7 +446,7 @@ MonoBehaviour:
   - {fileID: 11400000, guid: e7f0bb22873e1b4499993d07b3628072, type: 2}
   - {fileID: 11400000, guid: bdbbe7710b100a94a85ae366eff26287, type: 2}
   - {fileID: 11400000, guid: b17441e7331b7184f8b21f595220b29b, type: 2}
-  - {fileID: 11400000, guid: 8da31661bfed3ef459d1ef7c6043dcdd, type: 2}
+  - {fileID: 11400000, guid: 87cfeb4103125fe47bfef7e3a5b3a339, type: 2}
   generationProfile: {fileID: 11400000, guid: c1cd1645c996fb44086b6701b1fe63c5, type: 2}
   materialWeights:
   - 0

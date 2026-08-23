@@ -101,11 +101,20 @@ public class CraftingSystem : MonoBehaviour
         CraftingRecipe recipe = FindActiveRecipe(recipeId);
         if (recipe == null || inventory == null || !inventory.IsInitialized || !recipe.IsValid())
             return false;
-        if (recipe.RequiredStation != activeStation)
-            return false;
         if (recipe.RequiredStation == CraftingStationType.Workbench && !hasWorkbenchAccess)
             return false;
+        if (recipe.RequiredStation == CraftingStationType.Inventory && activeStation == CraftingStationType.Inventory)
+        {
+            return CanCraftWithInventory(recipe);
+        }
+        if (activeStation != CraftingStationType.Workbench || !stationInUse)
+            return false;
 
+        return CanCraftWithInventory(recipe);
+    }
+
+    private bool CanCraftWithInventory(CraftingRecipe recipe)
+    {
         for (int i = 0; i < recipe.Ingredients.Count; i++)
         {
             CraftingIngredient ingredient = recipe.Ingredients[i];
@@ -158,7 +167,7 @@ public class CraftingSystem : MonoBehaviour
         bool previousAccess = hasWorkbenchAccess;
         CraftingStationType previousStation = activeStation;
         int previousRecipeCount = activeRecipes.Count;
-        hasWorkbenchAccess = stationInUse || (workbenchItem != null && inventory != null && inventory.IsInitialized && inventory.GetItemCount(workbenchItem.ItemId) > 0);
+        hasWorkbenchAccess = stationInUse;
         if (!hasWorkbenchAccess && activeStation == CraftingStationType.Workbench)
             activeStation = CraftingStationType.Inventory;
 
@@ -238,7 +247,12 @@ public class CraftingSystem : MonoBehaviour
         for (int i = 0; i < allRecipes.Count; i++)
         {
             CraftingRecipe recipe = allRecipes[i];
-            if (recipe != null && recipe.IsValid() && recipe.RequiredStation == activeStation)
+            if (recipe == null || !recipe.IsValid())
+                continue;
+
+            if (activeStation == CraftingStationType.Inventory && recipe.RequiredStation == CraftingStationType.Inventory)
+                activeRecipes.Add(recipe);
+            else if (activeStation == CraftingStationType.Workbench && stationInUse)
                 activeRecipes.Add(recipe);
         }
     }
