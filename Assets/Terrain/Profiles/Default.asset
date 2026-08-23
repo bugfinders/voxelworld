@@ -1,0 +1,38 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 54a2f274f45ad9a4198879e26cbefdec, type: 3}
+  m_Name: Default
+  m_EditorClassIdentifier: Assembly-CSharp::TerrainGenerationProfile
+  seed: 184729
+  heightNoiseScale: 0.01
+  heightOctaves: 1
+  heightPersistence: 0.5
+  heightLacunarity: 2
+  heightFloor: 0
+  heightAmplitude: 1
+  treeDensityMultiplier: 1
+  materialWeights:
+  - 0
+  - 45
+  - 40
+  - 10
+  - 0
+  - 0
+  - 3
+  - 2
+  - 1
+  - 0.2
+  - 0.8
+  - 0
+  - 0
+  - 0
+  - 0

@@ -5,10 +5,13 @@ public class ChunkedVoxelTerrain : MonoBehaviour
 {
     public Material[] materials;
     [SerializeField] private PlaceableItemAsset[] placeableItems = new PlaceableItemAsset[0];
+    [SerializeField] private TerrainGenerationProfile generationProfile;
     public float[] materialWeights = { 0f, 45f, 25f, 10f, 7f, 6f, 3f, 2f, 1f, 0.2f, 0.8f };
     public int grassMaterialIndex = 0;
     public Transform player;
     public Camera cam;
+
+    private float[] generationMaterialWeights;
 
     private GameObject hoverCube;
     private LineRenderer[] hoverEdgeLines;
@@ -87,26 +90,36 @@ public class ChunkedVoxelTerrain : MonoBehaviour
             return false;
         }
 
-        if (materialWeights == null || materialWeights.Length != materials.Length)
+        if (grassMaterialIndex < 0 || grassMaterialIndex >= materials.Length)
+            grassMaterialIndex = 0;
+
+        float[] configuredWeights = generationProfile != null && generationProfile.HasMaterialWeights && generationProfile.MaterialWeights.Length == materials.Length
+            ? generationProfile.MaterialWeights
+            : materialWeights;
+
+        if (configuredWeights == null || configuredWeights.Length != materials.Length)
         {
-            float[] resizedWeights = new float[materials.Length];
-            for (int i = 0; i < resizedWeights.Length; i++)
-                resizedWeights[i] = i == grassMaterialIndex ? 0f : 1f;
-            materialWeights = resizedWeights;
+            configuredWeights = new float[materials.Length];
+            for (int i = 0; i < configuredWeights.Length; i++)
+                configuredWeights[i] = i == grassMaterialIndex ? 0f : 1f;
         }
 
-        for (int i = 0; i < materialWeights.Length; i++)
-            materialWeights[i] = Mathf.Max(0f, materialWeights[i]);
+        generationMaterialWeights = new float[materials.Length];
+        for (int i = 0; i < generationMaterialWeights.Length; i++)
+            generationMaterialWeights[i] = Mathf.Max(0f, configuredWeights[i]);
 
-        materialWeights[grassMaterialIndex] = 0f;
+        generationMaterialWeights[grassMaterialIndex] = 0f;
         return HasPositiveSubsurfaceWeight();
     }
 
     private bool HasPositiveSubsurfaceWeight()
     {
-        for (int i = 0; i < materialWeights.Length; i++)
+        if (generationMaterialWeights == null)
+            return false;
+
+        for (int i = 0; i < generationMaterialWeights.Length; i++)
         {
-            if (i != grassMaterialIndex && materialWeights[i] > 0f)
+            if (i != grassMaterialIndex && generationMaterialWeights[i] > 0f)
                 return true;
         }
 
@@ -233,7 +246,7 @@ public class ChunkedVoxelTerrain : MonoBehaviour
         for (int x = 0; x < SIZE_X; x++)
         for (int z = 0; z < SIZE_Z; z++)
         {
-            float noise = Mathf.PerlinNoise(x * 0.01f, z * 0.01f);
+            float noise = GetHeightNoise(x, z);
             int surfaceHeight = Mathf.RoundToInt(Mathf.Lerp(MIN_HEIGHT, MAX_HEIGHT, noise));
 
             for (int y = 0; y <= surfaceHeight; y++)
@@ -248,6 +261,45 @@ public class ChunkedVoxelTerrain : MonoBehaviour
         GenerateTrees();
     }
 
+    private float GetHeightNoise(int x, int z)
+    {
+        if (generationProfile == null)
+            return Mathf.PerlinNoise(x * 0.01f, z * 0.01f);
+
+        float frequency = generationProfile.HeightNoiseScale;
+        float amplitude = 1f;
+        float value = 0f;
+        float amplitudeTotal = 0f;
+        float offsetX = GetSeedOffset(generationProfile.Seed, 701);
+        float offsetZ = GetSeedOffset(generationProfile.Seed, 907);
+
+        for (int octave = 0; octave < generationProfile.HeightOctaves; octave++)
+        {
+            float sampleX = (x + offsetX) * frequency;
+            float sampleZ = (z + offsetZ) * frequency;
+            value += Mathf.PerlinNoise(sampleX, sampleZ) * amplitude;
+            amplitudeTotal += amplitude;
+            amplitude *= generationProfile.HeightPersistence;
+            frequency *= generationProfile.HeightLacunarity;
+        }
+
+        float normalizedNoise = amplitudeTotal <= 0f ? 0.5f : value / amplitudeTotal;
+        float heightRange = 1f - generationProfile.HeightFloor;
+        return Mathf.Clamp01(generationProfile.HeightFloor + normalizedNoise * generationProfile.HeightAmplitude * heightRange);
+    }
+
+    private static float GetSeedOffset(int seed, int salt)
+    {
+        unchecked
+        {
+            uint hash = (uint)seed * 374761393u;
+            hash ^= (uint)salt * 668265263u;
+            hash ^= hash >> 13;
+            hash *= 1274126177u;
+            return (hash % 100000u) * 0.01f;
+        }
+    }
+
     private void GenerateTrees()
     {
         int woodMaterialIndex = FindMaterialIndex(WOOD_MATERIAL_NAME);
@@ -257,6 +309,10 @@ public class ChunkedVoxelTerrain : MonoBehaviour
             Debug.LogWarning("Trees could not be generated because Wood or Leaves is not configured.");
             return;
         }
+
+        float treeDensityMultiplier = generationProfile == null ? 1f : generationProfile.TreeDensityMultiplier;
+        float treeSpawnChance = Mathf.Clamp01(TREE_SPAWN_CHANCE * treeDensityMultiplier);
+        float treeClusterSpawnChance = Mathf.Clamp01(TREE_CLUSTER_SPAWN_CHANCE * treeDensityMultiplier);
 
         int centerX = SIZE_X / 2;
         int centerZ = SIZE_Z / 2;
@@ -268,7 +324,7 @@ public class ChunkedVoxelTerrain : MonoBehaviour
 
             uint hash = GetTreeHash(x, z, 17);
             float roll = hash / (float)uint.MaxValue;
-            if (roll <= TREE_SPAWN_CHANCE)
+            if (roll <= treeSpawnChance)
                 TryPlaceTreeAt(x, z, woodMaterialIndex, leavesMaterialIndex);
         }
 
@@ -280,7 +336,7 @@ public class ChunkedVoxelTerrain : MonoBehaviour
 
             uint clusterHash = GetTreeHash(x, z, 31);
             float clusterRoll = clusterHash / (float)uint.MaxValue;
-            if (clusterRoll > TREE_CLUSTER_SPAWN_CHANCE)
+            if (clusterRoll > treeClusterSpawnChance)
                 continue;
 
             int treeCount = TREE_CLUSTER_MIN_COUNT + (int)(GetTreeHash(x, z, 43) % (uint)(TREE_CLUSTER_MAX_COUNT - TREE_CLUSTER_MIN_COUNT + 1));
@@ -335,11 +391,25 @@ public class ChunkedVoxelTerrain : MonoBehaviour
         return false;
     }
 
-    private static uint GetTreeHash(int x, int z, int salt)
+    private uint GetTreeHash(int x, int z, int salt)
     {
+        return GetSeededHash(x, 0, z, salt);
+    }
+
+    private uint GetSeededHash(int x, int y, int z, int salt)
+    {
+        int seed = generationProfile == null ? 0 : generationProfile.Seed;
         unchecked
         {
-            return (uint)(x * 92837111 ^ z * 689287499 ^ salt * 1597334677);
+            uint hash = (uint)x * 92837111u;
+            hash ^= (uint)y * 19349663u;
+            hash ^= (uint)z * 689287499u;
+            hash ^= (uint)seed * 1597334677u;
+            hash ^= (uint)salt * 3812015801u;
+            hash ^= hash >> 16;
+            hash *= 2246822519u;
+            hash ^= hash >> 13;
+            return hash;
         }
     }
 
@@ -407,33 +477,36 @@ public class ChunkedVoxelTerrain : MonoBehaviour
         if (materials.Length <= 1)
             return grassMaterialIndex;
 
+        if (generationMaterialWeights == null || generationMaterialWeights.Length != materials.Length)
+            return grassMaterialIndex;
+
         float totalWeight = 0f;
-        for (int i = 0; i < materialWeights.Length; i++)
+        for (int i = 0; i < generationMaterialWeights.Length; i++)
         {
             if (i != grassMaterialIndex)
-                totalWeight += materialWeights[i];
+                totalWeight += generationMaterialWeights[i];
         }
 
         if (totalWeight <= 0f)
             return grassMaterialIndex;
 
-        uint hash = (uint)(x * 73856093 ^ y * 19349663 ^ z * 83492791);
+        uint hash = GetSeededHash(x, y, z, 211);
         float roll = (hash / (float)uint.MaxValue) * totalWeight;
         float cumulativeWeight = 0f;
 
-        for (int i = 0; i < materialWeights.Length; i++)
+        for (int i = 0; i < generationMaterialWeights.Length; i++)
         {
             if (i == grassMaterialIndex)
                 continue;
 
-            cumulativeWeight += materialWeights[i];
+            cumulativeWeight += generationMaterialWeights[i];
             if (roll < cumulativeWeight)
                 return i;
         }
 
-        for (int i = materialWeights.Length - 1; i >= 0; i--)
+        for (int i = generationMaterialWeights.Length - 1; i >= 0; i--)
         {
-            if (i != grassMaterialIndex && materialWeights[i] > 0f)
+            if (i != grassMaterialIndex && generationMaterialWeights[i] > 0f)
                 return i;
         }
 

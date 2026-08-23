@@ -373,6 +373,7 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 0ff8137212b2cde41b32fa77b0cddb2e, type: 2}
   - {fileID: 11400000, guid: e7f0bb22873e1b4499993d07b3628072, type: 2}
   - {fileID: 11400000, guid: bdbbe7710b100a94a85ae366eff26287, type: 2}
+  generationProfile: {fileID: 11400000, guid: c1cd1645c996fb44086b6701b1fe63c5, type: 2}
   materialWeights:
   - 0
   - 45
