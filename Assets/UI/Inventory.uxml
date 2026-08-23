@@ -39,6 +39,11 @@
             <ui:VisualElement name="inventory-panel-header" class="inventory-panel-header">
                 <ui:Label name="inventory-panel-title" text="Inventory" class="inventory-panel-title" />
             </ui:VisualElement>
+            <ui:VisualElement name="inventory-chest-panel" class="inventory-chest-panel">
+                <ui:Label name="inventory-chest-title" text="Remote Storage" class="inventory-chest-title" />
+                <ui:VisualElement name="inventory-chest-content" class="inventory-chest-content" />
+            </ui:VisualElement>
+            <ui:Label name="inventory-player-title" text="Player Inventory" class="inventory-player-title" />
             <ui:ScrollView name="inventory-additional-scroll" class="inventory-additional-scroll">
                 <ui:VisualElement name="inventory-additional-content" class="inventory-additional-content" />
             </ui:ScrollView>

@@ -33,7 +33,11 @@ public class VoxelInventoryUI : MonoBehaviour
     private const string PanelTitleName = "inventory-panel-title";
     private const string AdditionalContentName = "inventory-additional-content";
     private const string AdditionalScrollName = "inventory-additional-scroll";
+    private const string ChestPanelName = "inventory-chest-panel";
+    private const string ChestTitleName = "inventory-chest-title";
     private const string CraftingContentName = "crafting-content";
+
+    private const string ChestContentName = "inventory-chest-content";
     private const string CraftingReturnName = "crafting-inventory-return";
     private const string CraftingInventoryStationName = "crafting-station-inventory";
     private const string CraftingWorkbenchStationName = "crafting-station-workbench";
@@ -44,6 +48,14 @@ public class VoxelInventoryUI : MonoBehaviour
     private const string TooltipKindName = "inventory-tooltip-kind";
 
     public Key additionalInventoryToggleKey = Key.Tab;
+    private enum InventoryContainer
+    {
+        Hotbar,
+        Player,
+        Chest
+    }
+
+
     public Key craftingToggleKey = Key.C;
 
     private static VoxelInventoryUI activeInstance;
@@ -55,6 +67,9 @@ public class VoxelInventoryUI : MonoBehaviour
     private VisualElement additionalContentHost;
     private VisualElement additionalScroll;
     private VisualElement craftingContentHost;
+    private VisualElement chestPanel;
+    private Label chestTitle;
+    private VisualElement chestContentHost;
     private Button craftingReturnButton;
     private Button craftingInventoryStationButton;
     private Button craftingWorkbenchStationButton;
@@ -63,6 +78,7 @@ public class VoxelInventoryUI : MonoBehaviour
     private ChunkedVoxelTerrain terrain;
     private VoxelInventory inventory;
     private CraftingSystem craftingSystem;
+    private ChestInventory activeChest;
     private VisualElement registeredRoot;
     private bool additionalInventoryVisible;
     private bool craftingVisible;
@@ -73,14 +89,17 @@ public class VoxelInventoryUI : MonoBehaviour
     private int selectedAdditionalSlotIndex = -1;
     private readonly List<Button> registeredHotbarButtons = new List<Button>();
     private bool dragSourceActive;
-    private bool dragSourceHotbar;
+    private InventoryContainer dragSourceContainer;
     private int dragSourceIndex;
+    private VisualElement dragSourceElement;
+
     private int dragPointerId;
     private VisualElement itemTooltip;
     private Label tooltipItemName;
     private Label tooltipKind;
     private Button hoveredTooltipSlot;
     private bool hoveredTooltipHotbar;
+    private bool hoveredTooltipChest;
     private int hoveredTooltipIndex = -1;
     private Vector2 hoveredTooltipPosition;
 
@@ -141,7 +160,8 @@ public class VoxelInventoryUI : MonoBehaviour
     {
         UnsubscribeFromInventory();
         UnsubscribeFromCrafting();
-        dragSourceActive = false;
+        UnsubscribeFromChest();
+        CancelDrag(dragPointerId);
         if (activeInstance == this)
             activeInstance = null;
         RestoreCursorState();
@@ -151,7 +171,8 @@ public class VoxelInventoryUI : MonoBehaviour
     {
         UnsubscribeFromInventory();
         UnsubscribeFromCrafting();
-        dragSourceActive = false;
+        UnsubscribeFromChest();
+        CancelDrag(dragPointerId);
         if (activeInstance == this)
             activeInstance = null;
         RestoreCursorState();
@@ -167,6 +188,8 @@ public class VoxelInventoryUI : MonoBehaviour
         {
             craftingVisible = false;
             craftingSystem?.EndStationUse();
+            UnsubscribeFromChest();
+            activeChest = null;
         }
 
         if (additionalInventoryVisible)
@@ -224,6 +247,31 @@ public class VoxelInventoryUI : MonoBehaviour
         CaptureAndShowCursor();
         ApplyPanelVisibility();
         RefreshCraftingView();
+    }
+
+    /// <summary>
+    /// Opens the remote inventory belonging to a placed chest.
+    /// </summary>
+    public void OpenChest(ChunkedVoxelTerrain chestTerrain, ChestInventory chest)
+    {
+        if (chestTerrain == null || chest == null)
+            return;
+
+        if (additionalPanel == null || additionalContentHost == null)
+            Refresh();
+        if (additionalPanel == null || additionalContentHost == null)
+            return;
+
+        UnsubscribeFromChest();
+        terrain = chestTerrain;
+        activeChest = chest;
+        activeChest.Changed += Refresh;
+        craftingSystem?.EndStationUse();
+        craftingVisible = false;
+        additionalInventoryVisible = true;
+        CaptureAndShowCursor();
+        GenerateChestSlots();
+        ApplyPanelVisibility();
     }
 
     /// <summary>
@@ -297,7 +345,7 @@ public class VoxelInventoryUI : MonoBehaviour
         if (documentRoot == null)
             return;
 
-        if (root != documentRoot || hotbarSlotsHost == null || additionalPanel == null || additionalContentHost == null)
+        if (root != documentRoot || hotbarSlotsHost == null || additionalPanel == null || additionalContentHost == null || chestPanel == null)
         {
             root = documentRoot.Q<VisualElement>(RootName) ?? documentRoot;
             hotbarSlotsHost = root.Q<VisualElement>(HotbarSlotsName);
@@ -305,6 +353,9 @@ public class VoxelInventoryUI : MonoBehaviour
             panelTitle = root.Q<Label>(PanelTitleName);
             additionalContentHost = root.Q<VisualElement>(AdditionalContentName);
             additionalScroll = root.Q<VisualElement>(AdditionalScrollName);
+            chestPanel = root.Q<VisualElement>(ChestPanelName);
+            chestTitle = root.Q<Label>(ChestTitleName);
+            chestContentHost = root.Q<VisualElement>(ChestContentName);
 
             craftingContentHost = root.Q<VisualElement>(CraftingContentName);
             craftingReturnButton = root.Q<Button>(CraftingReturnName);
@@ -322,6 +373,7 @@ public class VoxelInventoryUI : MonoBehaviour
         ResolveCraftingSystem();
         GenerateHotbarSlots();
         GenerateAdditionalSlots();
+        GenerateChestSlots();
         RefreshCraftingView();
         ApplyPanelVisibility();
     }
@@ -383,6 +435,39 @@ public class VoxelInventoryUI : MonoBehaviour
                 additionalContentHost = new VisualElement { name = AdditionalContentName };
                 additionalContentHost.AddToClassList("inventory-additional-content");
                 additionalPanel.Add(additionalContentHost);
+            }
+        }
+
+        if (chestPanel == null)
+        {
+            chestPanel = root.Q<VisualElement>(ChestPanelName);
+            if (chestPanel == null)
+            {
+                chestPanel = new VisualElement { name = ChestPanelName };
+                chestPanel.AddToClassList("inventory-chest-panel");
+                additionalPanel.Add(chestPanel);
+            }
+        }
+
+        if (chestTitle == null)
+        {
+            chestTitle = chestPanel.Q<Label>(ChestTitleName);
+            if (chestTitle == null)
+            {
+                chestTitle = new Label { name = ChestTitleName, text = "Remote Storage" };
+                chestTitle.AddToClassList("inventory-chest-title");
+                chestPanel.Add(chestTitle);
+            }
+        }
+
+        if (chestContentHost == null)
+        {
+            chestContentHost = chestPanel.Q<VisualElement>(ChestContentName);
+            if (chestContentHost == null)
+            {
+                chestContentHost = new VisualElement { name = ChestContentName };
+                chestContentHost.AddToClassList("inventory-chest-content");
+                chestPanel.Add(chestContentHost);
             }
         }
 
@@ -520,6 +605,12 @@ public class VoxelInventoryUI : MonoBehaviour
         }
     }
 
+    private void UnsubscribeFromChest()
+    {
+        if (activeChest != null)
+            activeChest.Changed -= Refresh;
+    }
+
     private void ResolveCraftingSystem()
     {
         CraftingSystem nextCraftingSystem = craftingSystem ?? GetComponent<CraftingSystem>();
@@ -580,7 +671,7 @@ public class VoxelInventoryUI : MonoBehaviour
                     if (evt.button != 0)
                         return;
 
-                    BeginDrag(true, capturedIndex, evt.pointerId);
+                    BeginDrag(InventoryContainer.Hotbar, capturedIndex, evt.pointerId, button);
                     SelectHotbarSlot(capturedIndex);
                     evt.StopPropagation();
                 });
@@ -592,7 +683,7 @@ public class VoxelInventoryUI : MonoBehaviour
                     CompleteDragAtPosition(evt.position, evt.pointerId, evt.shiftKey);
                     evt.StopPropagation();
                 });
-                RegisterTooltipCallbacks(button, true, capturedIndex);
+                RegisterTooltipCallbacks(button, true, capturedIndex, false);
                 registeredHotbarButtons.Add(button);
             }
 
@@ -656,7 +747,7 @@ public class VoxelInventoryUI : MonoBehaviour
                 if (evt.button != 0)
                     return;
 
-                BeginDrag(false, capturedIndex, evt.pointerId);
+                BeginDrag(InventoryContainer.Player, capturedIndex, evt.pointerId, button);
                 evt.StopPropagation();
             });
             button.RegisterCallback<PointerUpEvent>(evt =>
@@ -667,18 +758,54 @@ public class VoxelInventoryUI : MonoBehaviour
                 CompleteDragAtPosition(evt.position, evt.pointerId, evt.shiftKey);
                 evt.StopPropagation();
             });
-            RegisterTooltipCallbacks(button, false, capturedIndex);
+            RegisterTooltipCallbacks(button, false, capturedIndex, false);
             additionalContentHost.Add(button);
             RefreshAdditionalSlot(button, slot, index);
         }
     }
 
-    private void RegisterTooltipCallbacks(Button button, bool hotbar, int index)
+    private void GenerateChestSlots()
+    {
+        if (chestContentHost == null)
+            return;
+
+        chestContentHost.Clear();
+        if (activeChest == null)
+            return;
+
+        for (int index = 0; index < ChestInventory.SlotCount; index++)
+        {
+            Button button = CreateSlotButton(SlotClass);
+            int capturedIndex = index;
+            button.RegisterCallback<PointerDownEvent>(evt =>
+            {
+                if (evt.button != 0)
+                    return;
+
+                BeginDrag(InventoryContainer.Chest, capturedIndex, evt.pointerId, button);
+                evt.StopPropagation();
+            });
+            button.RegisterCallback<PointerUpEvent>(evt =>
+            {
+                if (evt.button != 0)
+                    return;
+
+                CompleteDragAtPosition(evt.position, evt.pointerId, evt.shiftKey);
+                evt.StopPropagation();
+            });
+            RegisterTooltipCallbacks(button, false, capturedIndex, true);
+            chestContentHost.Add(button);
+            RefreshChestSlot(button, index);
+        }
+    }
+
+    private void RegisterTooltipCallbacks(Button button, bool hotbar, int index, bool chest)
     {
         button.RegisterCallback<PointerEnterEvent>(evt =>
         {
             hoveredTooltipSlot = button;
             hoveredTooltipHotbar = hotbar;
+            hoveredTooltipChest = chest;
             hoveredTooltipIndex = index;
             hoveredTooltipPosition = evt.position;
             UpdateItemTooltip();
@@ -733,9 +860,11 @@ public class VoxelInventoryUI : MonoBehaviour
             return;
         }
 
-        InventorySlotData slot = hoveredTooltipHotbar
-            ? inventory == null ? null : inventory.GetHotbarSlot(hoveredTooltipIndex)
-            : inventory == null || hoveredTooltipIndex >= inventory.AdditionalSlots.Count ? null : inventory.AdditionalSlots[hoveredTooltipIndex];
+        InventorySlotData slot = hoveredTooltipChest
+            ? activeChest == null ? null : activeChest.GetSlot(hoveredTooltipIndex)
+            : hoveredTooltipHotbar
+                ? inventory == null ? null : inventory.GetHotbarSlot(hoveredTooltipIndex)
+                : inventory == null || hoveredTooltipIndex >= inventory.AdditionalSlots.Count ? null : inventory.AdditionalSlots[hoveredTooltipIndex];
         if (slot == null || slot.IsEmpty)
         {
             HideItemTooltip();
@@ -763,6 +892,7 @@ public class VoxelInventoryUI : MonoBehaviour
         {
             hoveredTooltipSlot = null;
             hoveredTooltipIndex = -1;
+            hoveredTooltipChest = false;
         }
     }
 
@@ -847,21 +977,36 @@ public class VoxelInventoryUI : MonoBehaviour
         SelectCraftingStation(CraftingStationType.Workbench);
     }
 
-    private void BeginDrag(bool sourceHotbar, int sourceIndex, int pointerId)
+    private void BeginDrag(InventoryContainer sourceContainer, int sourceIndex, int pointerId, VisualElement sourceElement)
     {
-        if (inventory == null || !inventory.IsInitialized)
+        if (inventory == null || !inventory.IsInitialized || sourceElement == null)
             return;
 
-        InventorySlotData source = sourceHotbar
-            ? inventory.GetHotbarSlot(sourceIndex)
-            : sourceIndex < inventory.AdditionalSlots.Count ? inventory.AdditionalSlots[sourceIndex] : null;
+        InventorySlotData source = GetSlot(sourceContainer, sourceIndex);
         if (source == null || source.IsEmpty)
             return;
 
         dragSourceActive = true;
-        dragSourceHotbar = sourceHotbar;
+        dragSourceContainer = sourceContainer;
         dragSourceIndex = sourceIndex;
         dragPointerId = pointerId;
+        dragSourceElement = sourceElement;
+        sourceElement.CapturePointer(pointerId);
+    }
+
+    private InventorySlotData GetSlot(InventoryContainer container, int index)
+    {
+        switch (container)
+        {
+            case InventoryContainer.Hotbar:
+                return inventory.GetHotbarSlot(index);
+            case InventoryContainer.Player:
+                return index >= 0 && index < inventory.AdditionalSlots.Count ? inventory.AdditionalSlots[index] : null;
+            case InventoryContainer.Chest:
+                return activeChest == null ? null : activeChest.GetSlot(index);
+            default:
+                return null;
+        }
     }
 
     private void CompleteDragAtPosition(Vector2 pointerPosition, int pointerId, bool shiftHeld)
@@ -869,22 +1014,41 @@ public class VoxelInventoryUI : MonoBehaviour
         if (!dragSourceActive || dragPointerId != pointerId)
             return;
 
-        bool targetHotbar;
+        InventoryContainer targetContainer;
         int targetIndex;
-        if (!TryGetSlotAtPosition(pointerPosition, out targetHotbar, out targetIndex))
+        if (!TryGetSlotAtPosition(pointerPosition, out targetContainer, out targetIndex))
         {
-            dragSourceActive = false;
+            CancelDrag(pointerId);
             return;
         }
 
-        bool sameSlot = dragSourceHotbar == targetHotbar && dragSourceIndex == targetIndex;
+        bool sameSlot = dragSourceContainer == targetContainer && dragSourceIndex == targetIndex;
         bool moved = false;
         if (!sameSlot)
-            moved = inventory != null && inventory.TryMoveItem(dragSourceHotbar, dragSourceIndex, targetHotbar, targetIndex);
-        else if (!targetHotbar && inventory != null)
-            moved = inventory.TryTakeAdditionalItemToHotbar(targetIndex, shiftHeld);
+        {
+            if (dragSourceContainer == InventoryContainer.Chest)
+            {
+                moved = inventory != null && inventory.TryMoveItemFromChest(activeChest, dragSourceIndex,
+                    targetContainer == InventoryContainer.Hotbar, targetIndex);
+            }
+            else if (targetContainer == InventoryContainer.Chest)
+            {
+                moved = inventory != null && inventory.TryMoveItemToChest(activeChest,
+                    dragSourceContainer == InventoryContainer.Hotbar, dragSourceIndex, targetIndex);
+            }
+            else
+            {
+                moved = inventory != null && inventory.TryMoveItem(
+                    dragSourceContainer == InventoryContainer.Hotbar, dragSourceIndex,
+                    targetContainer == InventoryContainer.Hotbar, targetIndex);
+            }
+        }
+        else if (dragSourceContainer == InventoryContainer.Player && shiftHeld)
+        {
+            moved = inventory != null && inventory.TryTakeAdditionalItemToHotbar(dragSourceIndex, true);
+        }
 
-        dragSourceActive = false;
+        CancelDrag(pointerId);
         if (moved)
         {
             selectedAdditionalSlotIndex = -1;
@@ -892,7 +1056,15 @@ public class VoxelInventoryUI : MonoBehaviour
         }
     }
 
-    private bool TryGetSlotAtPosition(Vector2 pointerPosition, out bool hotbar, out int index)
+    private void CancelDrag(int pointerId)
+    {
+        if (dragSourceElement != null && dragSourceElement.HasPointerCapture(pointerId))
+            dragSourceElement.ReleasePointer(pointerId);
+        dragSourceElement = null;
+        dragSourceActive = false;
+    }
+
+    private bool TryGetSlotAtPosition(Vector2 pointerPosition, out InventoryContainer container, out int index)
     {
         if (hotbarSlotsHost != null)
         {
@@ -900,27 +1072,40 @@ public class VoxelInventoryUI : MonoBehaviour
             {
                 if (hotbarSlotsHost[i].worldBound.Contains(pointerPosition))
                 {
-                    hotbar = true;
+                    container = InventoryContainer.Hotbar;
                     index = i;
                     return true;
                 }
             }
         }
 
-        if (additionalContentHost != null)
+        if (additionalContentHost != null && additionalContentHost.resolvedStyle.display != DisplayStyle.None)
         {
             for (int i = 0; i < additionalContentHost.childCount; i++)
             {
                 if (additionalContentHost[i].worldBound.Contains(pointerPosition))
                 {
-                    hotbar = false;
+                    container = InventoryContainer.Player;
                     index = i;
                     return true;
                 }
             }
         }
 
-        hotbar = false;
+        if (chestContentHost != null && chestContentHost.resolvedStyle.display != DisplayStyle.None)
+        {
+            for (int i = 0; i < chestContentHost.childCount; i++)
+            {
+                if (chestContentHost[i].worldBound.Contains(pointerPosition))
+                {
+                    container = InventoryContainer.Chest;
+                    index = i;
+                    return true;
+                }
+            }
+        }
+
+        container = InventoryContainer.Player;
         index = -1;
         return false;
     }
@@ -984,6 +1169,12 @@ public class VoxelInventoryUI : MonoBehaviour
         }
     }
 
+    private void RefreshChestSlot(Button button, int index)
+    {
+        InventorySlotData slot = activeChest == null ? null : activeChest.GetSlot(index);
+        RefreshSlot(button, slot, activeChest != null, false);
+    }
+
     private void HandleSelectionChanged(int index)
     {
         RefreshSlotStates();
@@ -994,7 +1185,7 @@ public class VoxelInventoryUI : MonoBehaviour
         if (additionalPanel != null)
             additionalPanel.EnableInClassList(AdditionalPanelVisibleClass, additionalInventoryVisible);
         if (panelTitle != null)
-            panelTitle.text = craftingVisible ? "Crafting" : "Inventory";
+            panelTitle.text = craftingVisible ? "Crafting" : activeChest == null ? "Inventory" : "Chest";
         if (additionalScroll != null)
             additionalScroll.style.display = craftingVisible ? DisplayStyle.None : DisplayStyle.Flex;
         if (additionalContentHost != null)
@@ -1004,6 +1195,9 @@ public class VoxelInventoryUI : MonoBehaviour
             craftingContentHost.EnableInClassList(CraftingVisibleClass, craftingVisible);
             craftingContentHost.style.display = craftingVisible ? DisplayStyle.Flex : DisplayStyle.None;
         }
+        if (chestPanel != null)
+            chestPanel.style.display = !craftingVisible && activeChest != null ? DisplayStyle.Flex : DisplayStyle.None;
+
     }
 
     private void CaptureAndShowCursor()

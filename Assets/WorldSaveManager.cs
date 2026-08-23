@@ -8,7 +8,7 @@ using UnityEngine.SceneManagement;
 public sealed class WorldSaveManager : MonoBehaviour
 {
     private const int SaveMagic = 0x43554245;
-    private const int SaveVersion = 4;
+    private const int SaveVersion = 5;
     private const int MaxHarvestedItemCount = 10000;
     private const string SaveFileName = "cubeits_world.save";
 
@@ -99,6 +99,7 @@ public sealed class WorldSaveManager : MonoBehaviour
                     writer.Write(false);
                 }
                 WriteInventory(writer, terrain.Inventory);
+                terrain.WriteChestInventories(writer);
                 writer.Flush();
             }
 
@@ -131,7 +132,7 @@ public sealed class WorldSaveManager : MonoBehaviour
                     throw new InvalidDataException("Invalid save file.");
 
                 int savedVersion = reader.ReadInt32();
-                if (savedVersion != 3 && savedVersion != SaveVersion)
+                if (savedVersion != 3 && savedVersion != 4 && savedVersion != SaveVersion)
                     throw new InvalidDataException("Unsupported save version.");
 
                 int width = reader.ReadInt32();
@@ -154,7 +155,9 @@ public sealed class WorldSaveManager : MonoBehaviour
                     playerCamera.transform.localPosition = ReadVector3(reader);
                     playerCamera.transform.localEulerAngles = ReadVector3(reader);
                 }
-                ReadInventory(reader, terrain.Inventory, savedVersion >= SaveVersion);
+                ReadInventory(reader, terrain.Inventory, savedVersion >= 4);
+                if (savedVersion >= SaveVersion)
+                    terrain.ReadChestInventories(reader);
                 VoxelPlayerController playerController = player.GetComponent<VoxelPlayerController>();
                 if (playerController != null)
                     playerController.SyncLookToTransforms();

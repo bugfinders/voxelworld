@@ -15,6 +15,7 @@ public class Chunk : MonoBehaviour
     private const float HalfPixelU = 1f / 32f;
     private const float HalfPixelV = 1f / 64f;
     private const string WorkbenchMaterialName = "Workbench";
+    private const string ChestMaterialName = "Chest";
 
     private MeshFilter meshFilter;
     private MeshRenderer meshRenderer;
@@ -163,8 +164,9 @@ public class Chunk : MonoBehaviour
         Rect dirtTile = new Rect(HalfPixelU, HalfPixelV, 1f - HalfPixelU * 2f, 0.5f - HalfPixelV * 2f);
         Rect grassTile = new Rect(HalfPixelU, 0.5f + HalfPixelV, 1f - HalfPixelU * 2f, 0.5f - HalfPixelV * 2f);
         bool isWorkbenchMaterial = materials[materialIndex] != null && materials[materialIndex].name == WorkbenchMaterialName;
-        Rect sideTile = isWorkbenchMaterial ? dirtTile : fullTile;
-        Rect topTile = isWorkbenchMaterial ? grassTile : fullTile;
+        bool isChestMaterial = materials[materialIndex] != null && materials[materialIndex].name == ChestMaterialName;
+        Rect sideTile = isWorkbenchMaterial || isChestMaterial ? dirtTile : fullTile;
+        Rect topTile = isWorkbenchMaterial || isChestMaterial ? grassTile : fullTile;
         if (FaceVisible(x, y, z, 0, 0, -1))
         {
             if (isGrassMaterial)

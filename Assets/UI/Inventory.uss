@@ -167,6 +167,39 @@
     color: var(--inventory-text-color);
 }
 
+.inventory-chest-panel {
+    display: none;
+    flex-direction: column;
+    flex-shrink: 0;
+    padding-left: 8px;
+    padding-right: 8px;
+    padding-bottom: 8px;
+    margin-bottom: 8px;
+    border-bottom-width: 1px;
+    border-bottom-color: rgba(170, 185, 205, 0.35);
+}
+
+.inventory-chest-title {
+    color: var(--inventory-text-color);
+    font-size: 15px;
+    margin-bottom: 4px;
+    -unity-font-style: bold;
+}
+
+.inventory-chest-content {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+}
+
+.inventory-player-title {
+    color: var(--inventory-text-color);
+    font-size: 14px;
+    margin-left: 8px;
+    margin-bottom: 4px;
+    -unity-font-style: bold;
+}
+
 .inventory-additional-scroll {
     flex-grow: 1;
     min-height: 70px;

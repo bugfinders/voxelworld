@@ -1,5 +1,7 @@
 using System;
 using System.Collections;
+
+using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -24,6 +26,8 @@ public class ChunkedVoxelTerrain : MonoBehaviour
     private int[,,] voxelMaterials;
     private Chunk[,] chunks;
     private VoxelPlayerController control;
+    private readonly Dictionary<Vector3Int, ChestInventory> chestInventories = new Dictionary<Vector3Int, ChestInventory>();
+
     private VoxelInventory inventory;
 
     public const int SIZE_X = 500;
@@ -564,6 +568,109 @@ public class ChunkedVoxelTerrain : MonoBehaviour
         return solid[x, y, z];
     }
 
+    /// <summary>
+    /// Opens the persistent remote inventory attached to a chest voxel.
+    /// </summary>
+    public ChestInventory OpenChest(Vector3Int coordinate)
+    {
+        if (!IsChestCoordinate(coordinate))
+            return null;
+
+        if (!chestInventories.TryGetValue(coordinate, out ChestInventory chest))
+        {
+            chest = new ChestInventory(coordinate);
+            chestInventories.Add(coordinate, chest);
+        }
+
+        return chest;
+    }
+
+    /// <summary>
+    /// Returns whether the supplied world coordinate contains a chest voxel.
+    /// </summary>
+    public bool IsChestCoordinate(Vector3Int coordinate)
+    {
+        if (!IsSolid(coordinate.x, coordinate.y, coordinate.z))
+            return false;
+
+        int materialIndex = voxelMaterials[coordinate.x, coordinate.y, coordinate.z];
+        PlaceableItemAsset item = GetPlaceableItemForMaterialIndex(materialIndex);
+        return item != null && string.Equals(item.ItemId, "chest", StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Removes the stored inventory for a chest that has been mined.
+    /// </summary>
+    public void RemoveChestInventory(Vector3Int coordinate)
+    {
+        chestInventories.Remove(coordinate);
+    }
+
+    /// <summary>
+    /// Writes all chest inventories keyed by their voxel coordinates.
+    /// </summary>
+    public void WriteChestInventories(BinaryWriter writer)
+    {
+        writer.Write(chestInventories.Count);
+        foreach (KeyValuePair<Vector3Int, ChestInventory> entry in chestInventories)
+        {
+            writer.Write(entry.Key.x);
+            writer.Write(entry.Key.y);
+            writer.Write(entry.Key.z);
+            writer.Write(ChestInventory.SlotCount);
+            for (int i = 0; i < ChestInventory.SlotCount; i++)
+            {
+                InventorySlotData slot = entry.Value.GetSlot(i);
+                writer.Write(slot == null ? string.Empty : slot.ItemId ?? string.Empty);
+                writer.Write(slot == null ? string.Empty : slot.DisplayName ?? string.Empty);
+                writer.Write(slot == null ? 0 : Mathf.Max(0, slot.Count));
+            }
+        }
+    }
+
+    /// <summary>
+    /// Restores chest inventories saved for the current voxel world.
+    /// </summary>
+    public bool ReadChestInventories(BinaryReader reader)
+    {
+        int chestCount = reader.ReadInt32();
+        if (chestCount < 0 || chestCount > SIZE_X * SIZE_Z)
+            throw new InvalidDataException("Save contains an invalid chest count.");
+
+        chestInventories.Clear();
+        for (int i = 0; i < chestCount; i++)
+        {
+            Vector3Int coordinate = new Vector3Int(reader.ReadInt32(), reader.ReadInt32(), reader.ReadInt32());
+            int slotCount = reader.ReadInt32();
+            if (!IsValidChestCoordinate(coordinate) || slotCount != ChestInventory.SlotCount)
+                throw new InvalidDataException("Save contains an invalid chest inventory.");
+
+            List<InventorySlotSaveState> savedSlots = new List<InventorySlotSaveState>(slotCount);
+            for (int slotIndex = 0; slotIndex < slotCount; slotIndex++)
+            {
+                string itemId = reader.ReadString();
+                string displayName = reader.ReadString();
+                int count = reader.ReadInt32();
+                if (count < 0)
+                    throw new InvalidDataException("Save contains a negative chest inventory count.");
+                savedSlots.Add(new InventorySlotSaveState(itemId, displayName, count));
+            }
+
+            ChestInventory chest = OpenChest(coordinate);
+            if (chest == null || !chest.RestoreState(savedSlots, inventory))
+                throw new InvalidDataException("Save contains a chest that is not present in the world.");
+        }
+
+        return true;
+    }
+
+    private bool IsValidChestCoordinate(Vector3Int coordinate)
+    {
+        return coordinate.x >= 0 && coordinate.x < SIZE_X && coordinate.y >= MIN_HEIGHT && coordinate.y <= MAX_HEIGHT &&
+               coordinate.z >= 0 && coordinate.z < SIZE_Z && IsChestCoordinate(coordinate);
+    }
+
+
     private void BuildAllChunks()
     {
         foreach (Chunk chunk in chunks)
@@ -621,7 +728,11 @@ public class ChunkedVoxelTerrain : MonoBehaviour
             return;
 
         int materialIndex = voxelMaterials[voxelX, voxelY, voxelZ];
+        Vector3Int coordinate = new Vector3Int(voxelX, voxelY, voxelZ);
+        bool wasChest = IsChestCoordinate(coordinate);
         solid[voxelX, voxelY, voxelZ] = false;
+        if (wasChest)
+            RemoveChestInventory(coordinate);
         inventory.Add(GetDropMaterialIndex(materialIndex));
         RebuildVoxelAndNeighbors(voxelX, voxelZ);
     }
@@ -743,15 +854,29 @@ public class ChunkedVoxelTerrain : MonoBehaviour
         int materialIndex = voxelMaterials[voxelX, voxelY, voxelZ];
         if (materialIndex < 0 || materialIndex >= materials.Length || materials[materialIndex] == null)
             return false;
-        PlaceableItemAsset placeableItem = GetPlaceableItemForMaterialIndex(materialIndex);
-        if (placeableItem == null || !placeableItem.OpensCraftingMenu)
-            return false;
 
+        Vector3Int targetCoordinate = new Vector3Int(voxelX, voxelY, voxelZ);
         VoxelInventoryUI inventoryUI = UnityEngine.Object.FindFirstObjectByType<VoxelInventoryUI>();
         if (inventoryUI == null)
             return false;
 
+        if (IsChestCoordinate(targetCoordinate))
+        {
+            ChestInventory chest = OpenChest(targetCoordinate);
+            if (chest == null)
+                return false;
+
+            inventoryUI.OpenChest(this, chest);
+            control?.CancelInteractionHold();
+            return true;
+        }
+
+        PlaceableItemAsset placeableItem = GetPlaceableItemForMaterialIndex(materialIndex);
+        if (placeableItem == null || !placeableItem.OpensCraftingMenu)
+            return false;
+
         inventoryUI.OpenStation(placeableItem);
+        control?.CancelInteractionHold();
         return true;
     }
     private int GetDropMaterialIndex(int materialIndex)
@@ -816,6 +941,8 @@ public class ChunkedVoxelTerrain : MonoBehaviour
             if (encodedState[i] > materials.Length)
                 return false;
         }
+        chestInventories.Clear();
+
 
         int offset = 0;
         for (int x = 0; x < SIZE_X; x++)

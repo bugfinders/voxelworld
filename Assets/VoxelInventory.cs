@@ -320,6 +320,106 @@ public class VoxelInventory : MonoBehaviour
         return true;
     }
 
+
+    /// <summary>
+    /// Moves or merges a player item into a specific chest slot.
+    /// </summary>
+    public bool TryMoveItemToChest(ChestInventory chest, bool sourceHotbar, int sourceIndex, int targetIndex)
+    {
+        if (chest == null || !isInitialized || !IsValidPlayerIndex(sourceHotbar, sourceIndex) || targetIndex < 0 || targetIndex >= ChestInventory.SlotCount)
+            return false;
+
+        InventorySlotData source = GetTransferSlot(sourceHotbar, sourceIndex);
+        InventorySlotData target = chest.GetSlot(targetIndex);
+        if (source == null || source.IsEmpty)
+            return false;
+
+        int previousSelectedIndex = selectedSlotIndex;
+        bool merged = CanMergeSlots(target, source);
+        if (merged)
+        {
+            if (!CanIncreaseCount(target.Count, source.Count))
+                return false;
+
+            target.SetCount(target.Count + source.Count);
+            source.Clear();
+        }
+        else
+        {
+            SetTransferSlot(sourceHotbar, sourceIndex, target ?? CreateEmptySlot());
+            chest.SetSlot(targetIndex, source);
+        }
+
+        UpdateSelectionAfterMove(sourceHotbar, sourceIndex, false, targetIndex, merged, previousSelectedIndex);
+        NotifyInventoryChanged();
+        chest.NotifyChanged();
+        return true;
+    }
+
+    /// <summary>
+    /// Moves or merges a chest item into a specific player inventory slot.
+    /// </summary>
+    public bool TryMoveItemFromChest(ChestInventory chest, int sourceIndex, bool targetHotbar, int targetIndex)
+    {
+        if (chest == null || !isInitialized || !IsValidPlayerIndex(targetHotbar, targetIndex))
+            return false;
+
+        InventorySlotData source = chest.GetSlot(sourceIndex);
+        InventorySlotData target = GetTransferSlot(targetHotbar, targetIndex);
+        if (source == null || source.IsEmpty)
+            return false;
+
+        int previousSelectedIndex = selectedSlotIndex;
+        bool merged = CanMergeSlots(target, source);
+        if (merged)
+        {
+            if (!CanIncreaseCount(target.Count, source.Count))
+                return false;
+
+            target.SetCount(target.Count + source.Count);
+            source.Clear();
+        }
+        else
+        {
+            chest.SetSlot(sourceIndex, target ?? CreateEmptySlot());
+            SetTransferSlot(targetHotbar, targetIndex, source);
+        }
+
+        UpdateSelectionAfterMove(false, sourceIndex, targetHotbar, targetIndex, merged, previousSelectedIndex);
+        NotifyInventoryChanged();
+        chest.NotifyChanged();
+        return true;
+    }
+
+    internal InventorySlotData CreateSlotFromSaveState(InventorySlotSaveState savedSlot)
+    {
+        return CreateSlotFromSave(savedSlot);
+    }
+
+    private InventorySlotData GetTransferSlot(bool hotbar, int index)
+    {
+        return hotbar ? hotbarSlots[index] : additionalSlots[index];
+    }
+
+    private void SetTransferSlot(bool hotbar, int index, InventorySlotData slot)
+    {
+        if (hotbar)
+            hotbarSlots[index] = slot;
+        else
+            additionalSlots[index] = slot;
+    }
+
+    private static bool CanMergeSlots(InventorySlotData target, InventorySlotData source)
+    {
+        return target != null && !target.IsEmpty && source != null && !source.IsEmpty &&
+               string.Equals(target.ItemId, source.ItemId, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private bool IsValidPlayerIndex(bool hotbar, int index)
+    {
+        return hotbar ? IsValidHotbarIndex(index) : index >= 0 && index < AdditionalSlotCount && additionalSlots != null && index < additionalSlots.Count;
+    }
+
     /// <summary>
     /// Transfers an additional-inventory stack into the hotbar, taking one item when requested.
     /// </summary>

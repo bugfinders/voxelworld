@@ -14,8 +14,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PlaceableItemAsset
   itemId: chest
   displayName: Chest
-  icon: {fileID: 0}
+  icon: {fileID: 2800000, guid: e3b49a66368b4c941bb409653698e5a0, type: 3}
   voxelMaterial: {fileID: 2100000, guid: 526eebbd998f98c44aafc768f7c88b8c, type: 2}
   blocksTopPlacement: 0
   opensCraftingMenu: 0
   craftingStation: 0
+  recipeTypesToShow: 1

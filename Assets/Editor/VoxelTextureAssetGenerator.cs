@@ -12,6 +12,7 @@ public static class VoxelTextureAssetGenerator
     private const string MaterialFolder = RootFolder + "/Materials";
     private const string GrassBlockAtlasPath = TextureFolder + "/GrassBlock_32x64.png";
     private const string WorkbenchAtlasPath = TextureFolder + "/Workbench_32x64.png";
+    private const string ChestAtlasPath = TextureFolder + "/Chest_32x64.png";
 
 
     [InitializeOnLoadMethod]
@@ -151,8 +152,11 @@ public static class VoxelTextureAssetGenerator
     {
         UpdateItemTextureReference("Assets/Crafting/Items/ClayBrick.asset", TextureFolder + "/ClayBrick_32x32.png");
         UpdateItemTextureReference("Assets/Crafting/Items/StoneBrick.asset", TextureFolder + "/StoneBrick_32x32.png");
-        UpdateRecipeTextureReference("Assets/Crafting/Recipes/ClayBrick.asset", TextureFolder + "/ClayBrick_32x32.png");
         UpdateRecipeTextureReference("Assets/Crafting/Recipes/StoneBrick.asset", TextureFolder + "/StoneBrick_32x32.png");
+
+        UpdateRecipeTextureReference("Assets/Crafting/Recipes/ClayBrick.asset", TextureFolder + "/ClayBrick_32x32.png");
+        UpdateItemTextureReference("Assets/Crafting/Items/Chest.asset", TextureFolder + "/Chest_32x32.png");
+        UpdateRecipeTextureReference("Assets/Crafting/Recipes/Chest.asset", TextureFolder + "/Chest_32x32.png");
     }
 
     private static void UpdateItemTextureReference(string assetPath, string texturePath)
@@ -206,7 +210,8 @@ public static class VoxelTextureAssetGenerator
         IronOre,
         GoldOre,
         DiamondOre,
-        RedstoneOre
+        RedstoneOre,
+        Chest
     }
 
     [MenuItem("Tools/Voxel/Create Stylized 16x16 Block Textures")]
@@ -281,6 +286,18 @@ public static class VoxelTextureAssetGenerator
         }
 
         UpdateEditableTextureReferences();
+
+        Material chestMaterial = AssetDatabase.LoadAssetAtPath<Material>(MaterialFolder + "/Chest.mat");
+        if (chestMaterial != null)
+        {
+            Texture2D chestAtlas = LoadOrCreatePngTexture(ChestAtlasPath, BuildChestAtlas, true);
+            chestMaterial.shader = shader;
+            chestMaterial.SetTexture("_BaseMap", chestAtlas);
+            chestMaterial.SetColor("_BaseColor", Color.white);
+            chestMaterial.SetFloat("_Smoothness", 0.12f);
+            EditorUtility.SetDirty(chestMaterial);
+        }
+
         AssetDatabase.SaveAssets();
         AssetDatabase.Refresh();
     }
@@ -343,6 +360,56 @@ public static class VoxelTextureAssetGenerator
         texture.SetPixels(pixels);
         texture.Apply(false, false);
         return texture;
+    }
+
+    private static Texture2D BuildChestAtlas()
+    {
+        Texture2D texture = new Texture2D(TextureSize, TextureSize * 2, TextureFormat.RGBA32, false, false)
+        {
+            name = "Chest_32x64",
+            filterMode = FilterMode.Point,
+            wrapMode = TextureWrapMode.Clamp,
+            anisoLevel = 0
+        };
+
+        Color[] pixels = new Color[TextureSize * TextureSize * 2];
+        for (int y = 0; y < TextureSize * 2; y++)
+        for (int x = 0; x < TextureSize; x++)
+        {
+            Color color = y < TextureSize
+                ? SampleChestSide(x / 2, (y / 2) % 16)
+                : SampleChestTop(x / 2, (y / 2) % 16);
+            pixels[y * TextureSize + x] = color;
+        }
+
+        texture.SetPixels(pixels);
+        texture.Apply(false, false);
+        return texture;
+    }
+
+    private static Color SampleChestSide(int x, int y)
+    {
+        Color color = Sample(BlockKind.Chest, x, y);
+        Color darkWood = new Color(0.20f, 0.08f, 0.025f, 1f);
+        Color lidWood = new Color(0.70f, 0.38f, 0.10f, 1f);
+        if (y >= 12)
+            color = lidWood;
+        if (y == 11 || x == 1 || x == TextureSize - 2)
+            color = darkWood;
+        if (x >= 14 && x <= 17 && y >= 5 && y <= 8)
+            color = new Color(0.88f, 0.65f, 0.18f, 1f);
+        return color;
+    }
+
+    private static Color SampleChestTop(int x, int y)
+    {
+        int value = Hash(x, y, 1571);
+        Color color = Palette(value, new Color(0.62f, 0.32f, 0.08f), new Color(0.82f, 0.49f, 0.14f), new Color(0.36f, 0.15f, 0.035f));
+        if (x == 1 || x == TextureSize - 2 || y == 1 || y == TextureSize - 2)
+            color = new Color(0.20f, 0.08f, 0.025f, 1f);
+        else if (x == 15 || x == 16)
+            color *= 0.82f;
+        return new Color(Mathf.Clamp01(color.r), Mathf.Clamp01(color.g), Mathf.Clamp01(color.b), 1f);
     }
 
     private static Color SampleWorkbenchSide(int x, int y)
@@ -436,7 +503,15 @@ public static class VoxelTextureAssetGenerator
                 else if (seam == 5)
                     baseColor *= 1.12f;
                 break;
-            case BlockKind.Leaves:
+            case BlockKind.Chest:
+                baseColor = Palette(value, new Color(0.58f, 0.29f, 0.07f), new Color(0.80f, 0.48f, 0.13f), new Color(0.34f, 0.14f, 0.03f));
+                if (y >= 12)
+                    baseColor *= 1.12f;
+                if (y == 11)
+                    baseColor = new Color(0.20f, 0.08f, 0.025f, 1f);
+                if (x >= 7 && x <= 8 && y >= 5 && y <= 8)
+                    baseColor = new Color(0.88f, 0.65f, 0.18f, 1f);
+                break;
                 baseColor = Palette(value, new Color(0.16f, 0.56f, 0.22f), new Color(0.36f, 0.78f, 0.28f), new Color(0.08f, 0.34f, 0.14f));
                 if ((x * 3 + y * 5 + value) % 17 == 0)
                     baseColor = new Color(0.58f, 0.86f, 0.30f);
