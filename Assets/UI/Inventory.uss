@@ -294,3 +294,51 @@
 .crafting-recipe-button:disabled {
     opacity: 0.4;
 }
+
+
+.inventory-slot,
+.inventory-panel-toggle,
+.crafting-return-button,
+.crafting-station-button,
+.crafting-recipe-button {
+    background-image: none;
+    background-color: rgb(31, 39, 53);
+    color: rgb(245, 247, 250);
+    border-left-width: 1px;
+    border-right-width: 1px;
+    border-top-width: 1px;
+    border-bottom-width: 1px;
+    border-left-color: rgba(170, 185, 205, 0.7);
+    border-right-color: rgba(170, 185, 205, 0.7);
+    border-top-color: rgba(170, 185, 205, 0.7);
+    border-bottom-color: rgba(170, 185, 205, 0.7);
+}
+
+.inventory-slot .unity-button__text,
+.inventory-panel-toggle .unity-button__text,
+.crafting-return-button .unity-button__text,
+.crafting-station-button .unity-button__text,
+.crafting-recipe-button .unity-button__text {
+    color: rgb(245, 247, 250);
+}
+
+.inventory-slot:hover,
+.inventory-panel-toggle:hover,
+.crafting-return-button:hover,
+.crafting-station-button:hover,
+.crafting-recipe-button:hover {
+    background-color: rgb(63, 76, 96);
+}
+
+.inventory-slot.inventory-slot--selected {
+    background-color: rgb(70, 67, 42);
+    border-left-width: 3px;
+    border-right-width: 3px;
+    border-top-width: 3px;
+    border-bottom-width: 3px;
+    border-left-color: rgb(255, 214, 76);
+    border-right-color: rgb(255, 214, 76);
+    border-top-color: rgb(255, 214, 76);
+    border-bottom-color: rgb(255, 214, 76);
+}
+

@@ -18,12 +18,16 @@ public class VoxelPlayerController : MonoBehaviour
     InputAction moveAction;
     InputAction lookAction;
     InputAction jumpAction;
-    InputAction dig;
+    InputAction interactionAction;
 
     Vector2 moveInput;
     Vector2 lookInput;
     bool jumpQueued;
-    bool digHeld;
+    bool interactionHeld;
+    bool placeRequested;
+    bool mineRequested;
+    bool useRequested;
+    bool minedDuringInteraction;
     float digTimer;
     public voxelAction doAction;
     private CharacterController cc;
@@ -45,15 +49,25 @@ public class VoxelPlayerController : MonoBehaviour
 
         jumpAction = new InputAction("Jump", InputActionType.Button);
         jumpAction.AddBinding("<Keyboard>/space");
-
         jumpAction.performed += ctx => jumpQueued = true;
-        
-        dig = new InputAction("Dig", InputActionType.Button);
-        dig.AddBinding("<Mouse>/leftButton");
-        dig.performed += ctx => { digHeld = true; digTimer = digRepeatInterval; };
-        dig.canceled += ctx => digHeld = false;
+
+        interactionAction = new InputAction("Interact", InputActionType.Button);
+        interactionAction.AddBinding("<Mouse>/leftButton");
+        interactionAction.performed += ctx =>
+        {
+            placeRequested = true;
+            interactionHeld = true;
+            minedDuringInteraction = false;
+            digTimer = digRepeatInterval;
+        };
+        interactionAction.canceled += ctx =>
+        {
+            interactionHeld = false;
+            if (!minedDuringInteraction)
+                useRequested = true;
+        };
     }
-    
+
     void OnEnable()
     {
         /*Cursor.lockState = CursorLockMode.Locked;
@@ -61,7 +75,7 @@ public class VoxelPlayerController : MonoBehaviour
         moveAction.Enable();
         lookAction.Enable();
         jumpAction.Enable();
-        dig.Enable();
+        interactionAction.Enable();
     }
 
     void OnDisable()
@@ -71,7 +85,13 @@ public class VoxelPlayerController : MonoBehaviour
         moveAction.Disable();
         lookAction.Disable();
         jumpAction.Disable();
-        dig.Disable();
+        interactionAction.Disable();
+        interactionHeld = false;
+        placeRequested = false;
+        mineRequested = false;
+        useRequested = false;
+        minedDuringInteraction = false;
+        doAction = voxelAction.nothing;
     }
 
     void Update()
@@ -91,26 +111,71 @@ public class VoxelPlayerController : MonoBehaviour
     public void ResetDigTimer()
     {
         digTimer = digRepeatInterval;
-        doAction = voxelAction.nothing;
+        mineRequested = false;
+        if (doAction == voxelAction.dig) doAction = voxelAction.nothing;
     }
 
-    // Raises doAction once per digRepeatInterval while the button stays held.
-    // The terrain clears the flag when it acts on it.
+    /// <summary>
+    /// Stops the current left-click mining hold after a station interaction.
+    /// </summary>
+    public void CancelInteractionHold()
+    {
+        interactionHeld = false;
+        digTimer = 0f;
+        mineRequested = false;
+        if (doAction == voxelAction.dig)
+            doAction = voxelAction.nothing;
+    }
+
+    /// <summary>
+    /// Returns and clears one queued workbench-use request from a short click.
+    /// </summary>
+    public bool ConsumeUseRequest()
+    {
+        bool request = useRequested;
+        useRequested = false;
+        return isActiveAndEnabled && request;
+    }
+
+    /// <summary>
+    /// Returns and clears one queued left-click placement request.
+    /// </summary>
+    public bool ConsumePlaceRequest()
+    {
+        bool request = placeRequested;
+        placeRequested = false;
+        return isActiveAndEnabled && request;
+    }
+
+    /// <summary>
+    /// Returns and clears one queued repeat-mining request.
+    /// </summary>
+    public bool ConsumeMineRequest()
+    {
+        bool request = mineRequested || doAction == voxelAction.dig;
+        mineRequested = false;
+        if (doAction == voxelAction.dig) doAction = voxelAction.nothing;
+        return isActiveAndEnabled && request;
+    }
+
+    // Raises a mining request once per digRepeatInterval while left-click stays held.
     private void TickDig()
     {
         // Hold's canceled phase is unreliable once performed has fired, so disarm
         // off the raw button state instead.
-        if (digHeld && !dig.IsPressed()) digHeld = false;
+        if (interactionHeld && !interactionAction.IsPressed()) interactionHeld = false;
 
-        if (!digHeld)
+        if (!interactionHeld)
         {
-            digTimer = 0f; // next arming digs immediately
+            digTimer = 0f;
             return;
         }
 
         digTimer -= Time.deltaTime;
         if (digTimer <= 0f)
         {
+            mineRequested = true;
+            minedDuringInteraction = true;
             doAction = voxelAction.dig;
             digTimer = digRepeatInterval;
         }
@@ -146,9 +211,7 @@ public class VoxelPlayerController : MonoBehaviour
         velocity.y = verticalVelocity;
 
         cc.Move(velocity * Time.deltaTime);
-
     }
-
 
     void RotateCamera()
     {
@@ -163,7 +226,6 @@ public class VoxelPlayerController : MonoBehaviour
 
         cam.transform.localRotation = Quaternion.Euler(pitch, 0f, 0f);
     }
-    
 }
 
 public enum voxelAction

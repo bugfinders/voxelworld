@@ -10,17 +10,18 @@ public class VoxelInventory : MonoBehaviour
     [SerializeField] private List<InventorySlotData> hotbarSlots = new List<InventorySlotData>();
     [SerializeField] private List<InventorySlotData> additionalSlots = new List<InventorySlotData>();
 
+    
     private readonly List<InventorySlotData> materialDefinitions = new List<InventorySlotData>();
-
     private int materialCount;
     private bool isInitialized;
-    private int selectedSlotIndex;
+    private int selectedSlotIndex = -1;
 
     public event Action InventoryChanged;
     public event Action<int> SelectionChanged;
 
     public bool IsInitialized => isInitialized;
     public int SelectedSlotIndex => selectedSlotIndex;
+    public bool HasSelectedSlot => isInitialized && IsValidHotbarIndex(selectedSlotIndex) && hotbarSlots[selectedSlotIndex] != null && !hotbarSlots[selectedSlotIndex].IsEmpty;
 
     public IReadOnlyList<InventorySlotData> HotbarSlots
     {
@@ -43,7 +44,7 @@ public class VoxelInventory : MonoBehaviour
     /// <summary>
     /// Initializes the ten-slot hotbar and twenty-slot inventory panel from terrain materials.
     /// </summary>
-    public void Initialize(Material[] materials)
+    public void Initialize(Material[] materials, PlaceableItemAsset[] placeableItems = null)
     {
         isInitialized = false;
         EnsureHotbarSlots();
@@ -59,9 +60,9 @@ public class VoxelInventory : MonoBehaviour
         for (int i = 0; i < materialCount; i++)
             materialDefinitions.Add(CreateEmptySlot());
         for (int i = 0; i < materialCount; i++)
-            PopulateMaterialSlot(i, materials[i]);
+            PopulateMaterialSlot(i, materials[i], FindPlaceableItem(placeableItems, materials[i]));
 
-        selectedSlotIndex = 0;
+        selectedSlotIndex = -1;
         isInitialized = true;
     }
 
@@ -74,7 +75,8 @@ public class VoxelInventory : MonoBehaviour
             return;
 
         InventorySlotData definition = materialDefinitions[materialIndex];
-        InventorySlotData existingSlot = FindSlotByItemId(definition.ItemId);
+        string itemId = definition.ItemId;
+        InventorySlotData existingSlot = FindSlotByItemId(itemId);
         if (existingSlot != null)
         {
             existingSlot.SetCount(existingSlot.Count + 1);
@@ -94,7 +96,7 @@ public class VoxelInventory : MonoBehaviour
         if (targetIndex < 0)
             return;
 
-        targetList[targetIndex] = new InventorySlotData(definition.ItemId, definition.DisplayName, 1, definition.Icon);
+        targetList[targetIndex] = new InventorySlotData(itemId, definition.DisplayName, 1, definition.Icon);
         Debug.Log($"Inventory: {definition.DisplayName} = 1");
         NotifyInventoryChanged();
     }
@@ -294,15 +296,87 @@ public class VoxelInventory : MonoBehaviour
     }
 
     /// <summary>
-    /// Selects a valid hotbar slot and notifies listeners when the selection changes.
+    /// Selects an occupied hotbar slot, or toggles the current slot off when selected again.
     /// </summary>
     public void SelectSlot(int index)
     {
-        if (!isInitialized || !IsValidHotbarIndex(index) || selectedSlotIndex == index)
+        if (!isInitialized || !IsValidHotbarIndex(index))
             return;
+
+        InventorySlotData slot = hotbarSlots[index];
+        if (slot == null || slot.IsEmpty)
+            return;
+
+        if (selectedSlotIndex == index)
+        {
+            selectedSlotIndex = -1;
+            SelectionChanged?.Invoke(selectedSlotIndex);
+            return;
+        }
 
         selectedSlotIndex = index;
         SelectionChanged?.Invoke(selectedSlotIndex);
+    }
+
+    /// <summary>
+    /// Resolves the selected occupied hotbar item to its configured material-array index.
+    /// </summary>
+    public bool TryGetSelectedMaterialIndex(out int materialIndex)
+    {
+        materialIndex = -1;
+        if (!HasSelectedSlot || materialDefinitions == null || materialDefinitions.Count != materialCount)
+            return false;
+
+        InventorySlotData selectedSlot = hotbarSlots[selectedSlotIndex];
+        string selectedItemId = selectedSlot.ItemId == null ? string.Empty : selectedSlot.ItemId.Trim();
+        if (string.IsNullOrEmpty(selectedItemId))
+            return false;
+
+        for (int i = 0; i < materialDefinitions.Count; i++)
+        {
+            InventorySlotData definition = materialDefinitions[i];
+            if (definition == null || string.IsNullOrEmpty(definition.ItemId))
+                continue;
+
+            if (string.Equals(definition.ItemId.Trim(), selectedItemId, StringComparison.OrdinalIgnoreCase))
+            {
+                materialIndex = i;
+                return materialIndex >= 0 && materialIndex < materialCount;
+            }
+        }
+
+        return false;
+    }
+
+    
+    /// <summary>
+    /// Consumes exactly one item from the selected material slot after resolving its material index.
+    /// </summary>
+    public bool TryConsumeSelectedMaterial(out int materialIndex)
+    {
+        materialIndex = -1;
+        if (!TryGetSelectedMaterialIndex(out materialIndex))
+            return false;
+
+        InventorySlotData selectedSlot = hotbarSlots[selectedSlotIndex];
+        if (selectedSlot == null || selectedSlot.IsEmpty || selectedSlot.Count <= 0)
+        {
+            materialIndex = -1;
+            return false;
+        }
+
+        selectedSlot.SetCount(selectedSlot.Count - 1);
+        bool selectionCleared = selectedSlot.Count == 0;
+        if (selectionCleared)
+        {
+            selectedSlot.Clear();
+            selectedSlotIndex = -1;
+        }
+
+        NotifyInventoryChanged();
+        if (selectionCleared)
+            SelectionChanged?.Invoke(selectedSlotIndex);
+        return true;
     }
 
     /// <summary>
@@ -378,12 +452,30 @@ public class VoxelInventory : MonoBehaviour
             additionalSlots[i] = NormalizeSlot(additionalSlots[i]);
     }
 
-    private void PopulateMaterialSlot(int materialIndex, Material material)
+    private void PopulateMaterialSlot(int materialIndex, Material material, PlaceableItemAsset placeableItem)
     {
         if (materialIndex < 0 || materialIndex >= materialDefinitions.Count)
             return;
 
-        materialDefinitions[materialIndex] = CreateMaterialSlot(materialIndex, material);
+        materialDefinitions[materialIndex] = placeableItem != null && placeableItem.IsValid
+            ? new InventorySlotData(placeableItem.ItemId, placeableItem.DisplayName, 0, placeableItem.Icon)
+            : CreateMaterialSlot(materialIndex, material);
+    }
+
+    
+    private static PlaceableItemAsset FindPlaceableItem(PlaceableItemAsset[] placeableItems, Material material)
+    {
+        if (placeableItems == null || material == null)
+            return null;
+
+        for (int i = 0; i < placeableItems.Length; i++)
+        {
+            PlaceableItemAsset placeableItem = placeableItems[i];
+            if (placeableItem != null && placeableItem.IsValid && placeableItem.MatchesMaterial(material))
+                return placeableItem;
+        }
+
+        return null;
     }
 
     private InventorySlotData CreateMaterialSlot(int materialIndex, Material material)

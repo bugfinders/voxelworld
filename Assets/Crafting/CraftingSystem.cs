@@ -4,11 +4,15 @@ using UnityEngine;
 
 public class CraftingSystem : MonoBehaviour
 {
+    [SerializeField] private CraftingRecipeAsset[] recipeAssets = new CraftingRecipeAsset[0];
+    [SerializeField] private PlaceableItemAsset workbenchItem;
+
     private readonly List<CraftingRecipe> allRecipes = new List<CraftingRecipe>();
     private readonly List<CraftingRecipe> activeRecipes = new List<CraftingRecipe>();
 
     private VoxelInventory inventory;
     private CraftingStationType activeStation = CraftingStationType.Inventory;
+    private bool stationInUse;
     private bool hasWorkbenchAccess;
     private bool catalogInitialized;
     private bool dependencyWarningLogged;
@@ -38,6 +42,37 @@ public class CraftingSystem : MonoBehaviour
     private void OnDisable()
     {
         UnsubscribeFromInventory();
+    }
+
+    /// <summary>
+    /// Opens the crafting station represented by a placed item definition.
+    /// </summary>
+    public void BeginStationUse(PlaceableItemAsset stationItem)
+    {
+        if (stationItem == null || !stationItem.IsValid || !stationItem.OpensCraftingMenu)
+            return;
+
+        stationInUse = true;
+        RefreshState();
+        SetStation(stationItem.CraftingStation);
+    }
+
+    /// <summary>
+    /// Ends access granted by a placed crafting station and returns to hand crafting.
+    /// </summary>
+    public void EndStationUse()
+    {
+        bool stationChanged = activeStation != CraftingStationType.Inventory;
+        stationInUse = false;
+        if (stationChanged)
+        {
+            activeStation = CraftingStationType.Inventory;
+            RebuildActiveRecipes();
+        }
+
+        bool stateChanged = RefreshStateInternal();
+        if (stateChanged || stationChanged)
+            CraftingChanged?.Invoke();
     }
 
     /// <summary>
@@ -110,7 +145,7 @@ public class CraftingSystem : MonoBehaviour
         bool previousAccess = hasWorkbenchAccess;
         CraftingStationType previousStation = activeStation;
         int previousRecipeCount = activeRecipes.Count;
-        hasWorkbenchAccess = inventory != null && inventory.IsInitialized && inventory.GetItemCount("workbench") > 0;
+        hasWorkbenchAccess = stationInUse || (workbenchItem != null && inventory != null && inventory.IsInitialized && inventory.GetItemCount(workbenchItem.ItemId) > 0);
         if (!hasWorkbenchAccess && activeStation == CraftingStationType.Workbench)
             activeStation = CraftingStationType.Inventory;
 
@@ -125,41 +160,24 @@ public class CraftingSystem : MonoBehaviour
 
         catalogInitialized = true;
         allRecipes.Clear();
-        allRecipes.Add(new CraftingRecipe(
-            "stool",
-            "stool",
-            "Stool",
-            1,
-            CraftingStationType.Inventory,
-            new CraftingIngredient("Wood", 2)));
-        allRecipes.Add(new CraftingRecipe(
-            "workbench",
-            "workbench",
-            "Workbench",
-            1,
-            CraftingStationType.Inventory,
-            new CraftingIngredient("Wood", 4)));
-        allRecipes.Add(new CraftingRecipe(
-            "chest",
-            "chest",
-            "Chest",
-            1,
-            CraftingStationType.Workbench,
-            new CraftingIngredient("Wood", 6)));
-        allRecipes.Add(new CraftingRecipe(
-            "furnace",
-            "furnace",
-            "Furnace",
-            1,
-            CraftingStationType.Workbench,
-            new CraftingIngredient("Stone", 8)));
+        if (recipeAssets == null)
+            return;
 
         HashSet<string> recipeIds = new HashSet<string>(StringComparer.Ordinal);
-        for (int i = 0; i < allRecipes.Count; i++)
+        for (int i = 0; i < recipeAssets.Length; i++)
         {
-            CraftingRecipe recipe = allRecipes[i];
+            CraftingRecipeAsset recipeAsset = recipeAssets[i];
+            if (recipeAsset == null)
+                continue;
+
+            CraftingRecipe recipe = recipeAsset.ToRuntimeRecipe();
             if (recipe == null || !recipe.IsValid() || !recipeIds.Add(recipe.RecipeId))
-                Debug.LogWarning("Crafting catalog contains an invalid or duplicate recipe.");
+            {
+                Debug.LogWarning($"Crafting recipe asset '{recipeAsset.name}' is invalid or duplicated.");
+                continue;
+            }
+
+            allRecipes.Add(recipe);
         }
     }
 

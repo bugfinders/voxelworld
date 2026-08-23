@@ -28,7 +28,6 @@ public class VoxelInventoryUI : MonoBehaviour
     private const string HotbarSlotsName = "inventory-hotbar-slots";
     private const string AdditionalPanelName = "inventory-additional-panel";
     private const string PanelTitleName = "inventory-panel-title";
-    private const string PanelToggleName = "inventory-panel-toggle";
     private const string CraftingToggleName = "inventory-crafting-toggle";
     private const string AdditionalContentName = "inventory-additional-content";
     private const string CraftingContentName = "crafting-content";
@@ -38,13 +37,13 @@ public class VoxelInventoryUI : MonoBehaviour
     private const string CraftingRecipeListName = "crafting-recipe-list";
 
     public Key additionalInventoryToggleKey = Key.Tab;
+    public Key craftingToggleKey = Key.C;
 
     private UIDocument document;
     private VisualElement root;
     private VisualElement hotbarSlotsHost;
     private VisualElement additionalPanel;
     private Label panelTitle;
-    private Button panelToggle;
     private Button craftingToggle;
     private VisualElement additionalContentHost;
     private VisualElement craftingContentHost;
@@ -85,6 +84,8 @@ public class VoxelInventoryUI : MonoBehaviour
         Keyboard keyboard = Keyboard.current;
         if (keyboard != null && keyboard[additionalInventoryToggleKey].wasPressedThisFrame)
             ToggleAdditionalInventory();
+        if (keyboard != null && keyboard[craftingToggleKey].wasPressedThisFrame)
+            ToggleCrafting();
 
         if (keyboard != null)
         {
@@ -110,7 +111,7 @@ public class VoxelInventoryUI : MonoBehaviour
                 SelectHotbarSlot(9);
         }
 
-        if (Time.frameCount % 10 == 0 && (inventory == null || !inventory.IsInitialized || hotbarSlotsHost == null || additionalPanel == null || panelToggle == null || additionalContentHost == null || craftingSystem == null))
+        if (Time.frameCount % 10 == 0 && (inventory == null || !inventory.IsInitialized || hotbarSlotsHost == null || additionalPanel == null || additionalContentHost == null || craftingSystem == null))
             Refresh();
     }
 
@@ -134,6 +135,12 @@ public class VoxelInventoryUI : MonoBehaviour
     public void ToggleAdditionalInventory()
     {
         additionalInventoryVisible = !additionalInventoryVisible;
+        if (!additionalInventoryVisible)
+        {
+            craftingVisible = false;
+            craftingSystem?.EndStationUse();
+        }
+
         if (additionalInventoryVisible)
             CaptureAndShowCursor();
         else
@@ -147,9 +154,18 @@ public class VoxelInventoryUI : MonoBehaviour
     /// </summary>
     public void ToggleCrafting()
     {
+        if (craftingSystem == null)
+            ResolveCraftingSystem();
+        if (craftingContentHost == null)
+        {
+            Refresh();
+            ResolveCraftingSystem();
+        }
         if (craftingSystem == null || craftingContentHost == null)
             return;
 
+        if (craftingVisible)
+            craftingSystem.EndStationUse();
         craftingVisible = !craftingVisible;
         additionalInventoryVisible = true;
         if (additionalInventoryVisible)
@@ -160,10 +176,34 @@ public class VoxelInventoryUI : MonoBehaviour
     }
 
     /// <summary>
+    /// Opens the crafting view using the placed item definition's station settings.
+    /// </summary>
+    public void OpenStation(PlaceableItemAsset stationItem)
+    {
+        if (craftingSystem == null)
+            ResolveCraftingSystem();
+        if (craftingContentHost == null)
+        {
+            Refresh();
+            ResolveCraftingSystem();
+        }
+        if (craftingSystem == null || craftingContentHost == null || stationItem == null)
+            return;
+
+        craftingSystem.BeginStationUse(stationItem);
+        craftingVisible = true;
+        additionalInventoryVisible = true;
+        CaptureAndShowCursor();
+        ApplyPanelVisibility();
+        RefreshCraftingView();
+    }
+
+    /// <summary>
     /// Returns from the crafting view to the additional inventory slots.
     /// </summary>
     public void ShowInventoryPanel()
     {
+        craftingSystem?.EndStationUse();
         craftingVisible = false;
         additionalInventoryVisible = true;
         CaptureAndShowCursor();
@@ -222,13 +262,12 @@ public class VoxelInventoryUI : MonoBehaviour
         if (documentRoot == null)
             return;
 
-        if (root != documentRoot || hotbarSlotsHost == null || additionalPanel == null || panelToggle == null || additionalContentHost == null)
+        if (root != documentRoot || hotbarSlotsHost == null || additionalPanel == null || additionalContentHost == null)
         {
             root = documentRoot.Q<VisualElement>(RootName) ?? documentRoot;
             hotbarSlotsHost = root.Q<VisualElement>(HotbarSlotsName);
             additionalPanel = root.Q<VisualElement>(AdditionalPanelName);
             panelTitle = root.Q<Label>(PanelTitleName);
-            panelToggle = root.Q<Button>(PanelToggleName);
             craftingToggle = root.Q<Button>(CraftingToggleName);
             additionalContentHost = root.Q<VisualElement>(AdditionalContentName);
             craftingContentHost = root.Q<VisualElement>(CraftingContentName);
@@ -299,23 +338,12 @@ public class VoxelInventoryUI : MonoBehaviour
             }
         }
 
-        if (panelToggle == null)
-        {
-            panelToggle = root.Q<Button>(PanelToggleName);
-            if (panelToggle == null)
-            {
-                panelToggle = new Button { name = PanelToggleName, text = "Open (Tab)" };
-                panelToggle.AddToClassList("inventory-panel-toggle");
-                additionalPanel.Add(panelToggle);
-            }
-        }
-
         if (craftingToggle == null)
         {
             craftingToggle = root.Q<Button>(CraftingToggleName);
             if (craftingToggle == null)
             {
-                craftingToggle = new Button { name = CraftingToggleName, text = "Crafting" };
+                craftingToggle = new Button { name = CraftingToggleName, text = "Crafting (C)" };
                 craftingToggle.AddToClassList("inventory-panel-toggle");
                 additionalPanel.Add(craftingToggle);
             }
@@ -393,10 +421,17 @@ public class VoxelInventoryUI : MonoBehaviour
         if (registeredRoot == root)
             return;
 
-        if (panelToggle != null)
-            panelToggle.clicked += ToggleAdditionalInventory;
         if (craftingToggle != null)
-            craftingToggle.clicked += ToggleCrafting;
+        {
+            craftingToggle.RegisterCallback<PointerDownEvent>(evt =>
+            {
+                if (evt.button != 0)
+                    return;
+
+                ToggleCrafting();
+                evt.StopPropagation();
+            });
+        }
         if (craftingReturnButton != null)
             craftingReturnButton.clicked += ShowInventoryPanel;
         if (craftingInventoryStationButton != null)
@@ -627,6 +662,7 @@ public class VoxelInventoryUI : MonoBehaviour
 
     private void SelectInventoryStation()
     {
+        craftingSystem?.EndStationUse();
         SelectCraftingStation(CraftingStationType.Inventory);
     }
 
@@ -649,6 +685,7 @@ public class VoxelInventoryUI : MonoBehaviour
     private void RefreshSlot(Button button, InventorySlotData slot, bool available, bool selected)
     {
         bool empty = slot == null || slot.IsEmpty;
+        selected = selected && !empty;
         button.EnableInClassList(OccupiedClass, !empty);
         button.EnableInClassList(EmptyClass, empty);
         button.EnableInClassList(UnavailableClass, !available);
@@ -704,8 +741,6 @@ public class VoxelInventoryUI : MonoBehaviour
             additionalPanel.EnableInClassList(AdditionalPanelVisibleClass, additionalInventoryVisible);
         if (panelTitle != null)
             panelTitle.text = craftingVisible ? "Crafting" : "Inventory";
-        if (panelToggle != null)
-            panelToggle.text = additionalInventoryVisible ? "Close" : "Open (Tab)";
         if (additionalContentHost != null)
             additionalContentHost.style.display = craftingVisible ? DisplayStyle.None : DisplayStyle.Flex;
         if (craftingContentHost != null)

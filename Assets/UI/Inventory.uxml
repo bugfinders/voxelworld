@@ -38,8 +38,7 @@
         <ui:VisualElement name="inventory-additional-panel" class="inventory-additional-panel">
             <ui:VisualElement name="inventory-panel-header" class="inventory-panel-header">
                 <ui:Label name="inventory-panel-title" text="Inventory" class="inventory-panel-title" />
-                <ui:Button name="inventory-panel-toggle" text="Open (Tab)" class="inventory-panel-toggle" />
-                <ui:Button name="inventory-crafting-toggle" text="Crafting" class="inventory-panel-toggle" />
+                <ui:Button name="inventory-crafting-toggle" text="Crafting (C)" class="inventory-panel-toggle" />
             </ui:VisualElement>
             <ui:ScrollView name="inventory-additional-scroll" class="inventory-additional-scroll">
                 <ui:VisualElement name="inventory-additional-content" class="inventory-additional-content" />

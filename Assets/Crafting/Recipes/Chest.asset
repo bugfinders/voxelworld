@@ -1,0 +1,24 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4ed53cfdc7d7f424683a64f3943de8ed, type: 3}
+  m_Name: Chest
+  m_EditorClassIdentifier: Assembly-CSharp::CraftingRecipeAsset
+  recipeId: chest
+  outputItem: {fileID: 11400000, guid: e7f0bb22873e1b4499993d07b3628072, type: 2}
+  outputItemId: chest
+  outputDisplayName: Chest
+  outputAmount: 1
+  outputIcon: {fileID: 0}
+  requiredStation: 1
+  ingredientItemIds:
+  - Wood
+  ingredientAmounts: 06000000i

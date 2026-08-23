@@ -362,8 +362,17 @@ MonoBehaviour:
   - {fileID: 2100000, guid: ad967c7161a3ab44fb868961ecee1d67, type: 2}
   - {fileID: 2100000, guid: fa82d71ef1bed1f4ab46f7d261a91306, type: 2}
   - {fileID: 2100000, guid: 38e6f16666fa7524888d134527f01c58, type: 2}
-  - {fileID: 2100000, guid: 3df6f378717c07b4f998208c856963f1, type: 2}
   - {fileID: 2100000, guid: 2e776ce648b9edf488ce93e842e37b27, type: 2}
+  - {fileID: 2100000, guid: 3df6f378717c07b4f998208c856963f1, type: 2}
+  - {fileID: 2100000, guid: 3b4ad0db1e56acd439513fd1326a5323, type: 2}
+  - {fileID: 2100000, guid: 5d61edb649513af428371c74400b1ead, type: 2}
+  - {fileID: 2100000, guid: 6e87089e5679e0d41ae8f7e627dbfaa7, type: 2}
+  - {fileID: 2100000, guid: 526eebbd998f98c44aafc768f7c88b8c, type: 2}
+  placeableItems:
+  - {fileID: 11400000, guid: 44675ec55cfbc8f47a34dbfdfec7ce4c, type: 2}
+  - {fileID: 11400000, guid: 0ff8137212b2cde41b32fa77b0cddb2e, type: 2}
+  - {fileID: 11400000, guid: e7f0bb22873e1b4499993d07b3628072, type: 2}
+  - {fileID: 11400000, guid: bdbbe7710b100a94a85ae366eff26287, type: 2}
   materialWeights:
   - 0
   - 45
@@ -376,6 +385,10 @@ MonoBehaviour:
   - 1
   - 0.2
   - 0.8
+  - 0
+  - 0
+  - 0
+  - 0
   grassMaterialIndex: 0
   player: {fileID: 1036100326}
   cam: {fileID: 1802050283}
@@ -411,6 +424,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::VoxelInventoryUI
   additionalInventoryToggleKey: 3
+  craftingToggleKey: 17
 --- !u!114 &1557790746
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -461,6 +475,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 892d059c52cbc3c429e4f603b4e96ce0, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CraftingSystem
+  recipeAssets:
+  - {fileID: 11400000, guid: d1f816b075236f84d8076e9b7baa3172, type: 2}
+  - {fileID: 11400000, guid: 520448c6bb1b0dd47a166d26f97c6807, type: 2}
+  - {fileID: 11400000, guid: df0a79ee618249b4aa931828855980ea, type: 2}
+  - {fileID: 11400000, guid: 9e882725f987d2544ad51beda00661b9, type: 2}
+  workbenchItem: {fileID: 11400000, guid: 44675ec55cfbc8f47a34dbfdfec7ce4c, type: 2}
 --- !u!1 &1802050280
 GameObject:
   m_ObjectHideFlags: 0

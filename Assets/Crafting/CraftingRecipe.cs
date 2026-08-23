@@ -62,6 +62,12 @@ public sealed class CraftingRecipe
         Normalize();
     }
 
+    public CraftingRecipe(string recipeId, string outputItemId, string outputDisplayName, int outputAmount, CraftingStationType requiredStation, Texture2D outputIcon, params CraftingIngredient[] ingredients)
+        : this(recipeId, outputItemId, outputDisplayName, outputAmount, requiredStation, ingredients)
+    {
+        this.outputIcon = outputIcon;
+    }
+
     public string RecipeId => recipeId;
     public string OutputItemId => outputItemId;
     public string OutputDisplayName => outputDisplayName;

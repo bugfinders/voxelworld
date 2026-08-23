@@ -9,6 +9,7 @@ public static class VoxelTextureAssetGenerator
     private const string TextureFolder = RootFolder + "/Textures";
     private const string MaterialFolder = RootFolder + "/Materials";
     private const string GrassBlockAtlasPath = TextureFolder + "/GrassBlock_16x32.asset";
+    private const string WorkbenchAtlasPath = TextureFolder + "/Workbench_16x32.asset";
     [InitializeOnLoadMethod]
     private static void QueueCreation()
     {
@@ -18,8 +19,11 @@ public static class VoxelTextureAssetGenerator
     private static void CreateIfMissing()
     {
         if (AssetDatabase.LoadAssetAtPath<Material>(MaterialFolder + "/Grass.mat") == null ||
-            AssetDatabase.LoadAssetAtPath<Texture2D>(GrassBlockAtlasPath) == null)
+            AssetDatabase.LoadAssetAtPath<Texture2D>(GrassBlockAtlasPath) == null ||
+            AssetDatabase.LoadAssetAtPath<Texture2D>(WorkbenchAtlasPath) == null)
             CreateBlockTextures();
+        else
+            RefreshWorkbenchAtlas();
     }
 
 
@@ -98,9 +102,25 @@ public static class VoxelTextureAssetGenerator
         grassMaterial.SetFloat("_Smoothness", 0.05f);
         EditorUtility.SetDirty(grassMaterial);
 
+        Material workbenchMaterial = AssetDatabase.LoadAssetAtPath<Material>(MaterialFolder + "/Workbench.mat");
+        if (workbenchMaterial != null)
+        {
+            Texture2D workbenchAtlas = AssetDatabase.LoadAssetAtPath<Texture2D>(WorkbenchAtlasPath);
+            if (workbenchAtlas == null)
+            {
+                workbenchAtlas = BuildWorkbenchAtlas();
+                AssetDatabase.CreateAsset(workbenchAtlas, WorkbenchAtlasPath);
+            }
+
+            workbenchMaterial.shader = shader;
+            workbenchMaterial.SetTexture("_BaseMap", workbenchAtlas);
+            workbenchMaterial.SetColor("_BaseColor", Color.white);
+            workbenchMaterial.SetFloat("_Smoothness", 0.12f);
+            EditorUtility.SetDirty(workbenchMaterial);
+        }
+
         AssetDatabase.SaveAssets();
         AssetDatabase.Refresh();
-        Debug.Log("Created stylized 16x16 voxel textures and one-material grass block atlas in Assets/VoxelTextures.");
     }
 
     private static Texture2D BuildGrassBlockAtlas()
@@ -124,6 +144,71 @@ public static class VoxelTextureAssetGenerator
         texture.SetPixels(pixels);
         texture.Apply(false, false);
         return texture;
+    }
+
+    private static void RefreshWorkbenchAtlas()
+    {
+        Texture2D atlas = AssetDatabase.LoadAssetAtPath<Texture2D>(WorkbenchAtlasPath);
+        if (atlas == null)
+            return;
+
+        Texture2D generated = BuildWorkbenchAtlas();
+        atlas.SetPixels(generated.GetPixels());
+        atlas.Apply(false, false);
+        EditorUtility.SetDirty(atlas);
+        UnityEngine.Object.DestroyImmediate(generated);
+        AssetDatabase.SaveAssets();
+    }
+
+    private static Texture2D BuildWorkbenchAtlas()
+    {
+        Texture2D texture = new Texture2D(TextureSize, TextureSize * 2, TextureFormat.RGBA32, false, false)
+        {
+            name = "Workbench_16x32",
+            filterMode = FilterMode.Point,
+            wrapMode = TextureWrapMode.Clamp,
+            anisoLevel = 0
+        };
+
+        Color[] pixels = new Color[TextureSize * TextureSize * 2];
+        for (int y = 0; y < TextureSize * 2; y++)
+        for (int x = 0; x < TextureSize; x++)
+        {
+            Color color = y < TextureSize ? SampleWorkbenchSide(x, y) : SampleWorkbenchTop(x, y - TextureSize);
+            pixels[y * TextureSize + x] = color;
+        }
+
+        texture.SetPixels(pixels);
+        texture.Apply(false, false);
+        return texture;
+    }
+
+    private static Color SampleWorkbenchSide(int x, int y)
+    {
+        Color color = Sample(BlockKind.Wood, x, y);
+        bool edge = x == 1 || x == TextureSize - 2 || y == TextureSize - 2;
+        if (edge)
+            color = new Color(0.10f, 0.045f, 0.018f, 1f);
+        return color;
+    }
+
+    private static Color SampleWorkbenchTop(int x, int y)
+    {
+        int value = Hash(x, y, 913);
+        Color color = Palette(value, new Color(0.48f, 0.25f, 0.10f), new Color(0.68f, 0.38f, 0.14f), new Color(0.31f, 0.14f, 0.05f));
+        bool plankLine = y == 3 || y == 8 || y == 13;
+        bool grainLine = (x + y * 2) % 7 == 0;
+        if (plankLine)
+            color *= 0.58f;
+        else if (grainLine)
+            color *= 1.10f;
+
+        Color edgeColor = new Color(0.10f, 0.045f, 0.018f, 1f);
+        bool tabletopEdge = x == 1 || x == TextureSize - 2 || y == 1 || y == TextureSize - 2;
+        if (tabletopEdge)
+            color = edgeColor;
+
+        return new Color(Mathf.Clamp01(color.r), Mathf.Clamp01(color.g), Mathf.Clamp01(color.b), 1f);
     }
 
     private static Texture2D BuildTexture(BlockKind kind, string label)

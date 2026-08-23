@@ -14,6 +14,7 @@ public class Chunk : MonoBehaviour
     private const float GrassSideDirtHeight = 0.9f;
     private const float HalfPixelU = 1f / 32f;
     private const float HalfPixelV = 1f / 64f;
+    private const string WorkbenchMaterialName = "Workbench";
 
     private MeshFilter meshFilter;
     private MeshRenderer meshRenderer;
@@ -161,14 +162,16 @@ public class Chunk : MonoBehaviour
         Rect fullTile = new Rect(HalfPixelU, HalfPixelV, 1f - HalfPixelU * 2f, 1f - HalfPixelV * 2f);
         Rect dirtTile = new Rect(HalfPixelU, HalfPixelV, 1f - HalfPixelU * 2f, 0.5f - HalfPixelV * 2f);
         Rect grassTile = new Rect(HalfPixelU, 0.5f + HalfPixelV, 1f - HalfPixelU * 2f, 0.5f - HalfPixelV * 2f);
-
+        bool isWorkbenchMaterial = materials[materialIndex] != null && materials[materialIndex].name == WorkbenchMaterialName;
+        Rect sideTile = isWorkbenchMaterial ? dirtTile : fullTile;
+        Rect topTile = isWorkbenchMaterial ? grassTile : fullTile;
         if (FaceVisible(x, y, z, 0, 0, -1))
         {
             if (isGrassMaterial)
                 AddGrassSideFace(vertices, trianglesByMaterial[materialIndex], uvs, basePosition, dirtTile, grassTile,
                     new Vector3(0,0,0), new Vector3(0,1,0), new Vector3(1,1,0), new Vector3(1,0,0), false);
             else
-                AddQuad(vertices, trianglesByMaterial[materialIndex], uvs, basePosition, fullTile,
+                AddQuad(vertices, trianglesByMaterial[materialIndex], uvs, basePosition, sideTile,
                     new Vector3(0,0,0), new Vector3(0,1,0), new Vector3(1,1,0), new Vector3(1,0,0));
         }
 
@@ -178,7 +181,7 @@ public class Chunk : MonoBehaviour
                 AddGrassSideFace(vertices, trianglesByMaterial[materialIndex], uvs, basePosition, dirtTile, grassTile,
                     new Vector3(0,0,1), new Vector3(0,1,1), new Vector3(1,1,1), new Vector3(1,0,1), true);
             else
-                AddQuad(vertices, trianglesByMaterial[materialIndex], uvs, basePosition, fullTile,
+                AddQuad(vertices, trianglesByMaterial[materialIndex], uvs, basePosition, sideTile,
                     new Vector3(0,0,1), new Vector3(1,0,1), new Vector3(1,1,1), new Vector3(0,1,1));
         }
 
@@ -188,7 +191,7 @@ public class Chunk : MonoBehaviour
                 AddGrassSideFace(vertices, trianglesByMaterial[materialIndex], uvs, basePosition, dirtTile, grassTile,
                     new Vector3(0,0,0), new Vector3(0,1,0), new Vector3(0,1,1), new Vector3(0,0,1), true);
             else
-                AddQuad(vertices, trianglesByMaterial[materialIndex], uvs, basePosition, fullTile,
+                AddQuad(vertices, trianglesByMaterial[materialIndex], uvs, basePosition, sideTile,
                     new Vector3(0,0,0), new Vector3(0,0,1), new Vector3(0,1,1), new Vector3(0,1,0));
         }
 
@@ -198,18 +201,18 @@ public class Chunk : MonoBehaviour
                 AddGrassSideFace(vertices, trianglesByMaterial[materialIndex], uvs, basePosition, dirtTile, grassTile,
                     new Vector3(1,0,0), new Vector3(1,1,0), new Vector3(1,1,1), new Vector3(1,0,1), false);
             else
-                AddQuad(vertices, trianglesByMaterial[materialIndex], uvs, basePosition, fullTile,
+                AddQuad(vertices, trianglesByMaterial[materialIndex], uvs, basePosition, sideTile,
                     new Vector3(1,0,0), new Vector3(1,1,0), new Vector3(1,1,1), new Vector3(1,0,1));
         }
 
         if (FaceVisible(x, y, z, 0, 1, 0))
             AddQuad(vertices, trianglesByMaterial[materialIndex], uvs, basePosition,
-                isGrassMaterial ? grassTile : fullTile,
+                isGrassMaterial ? grassTile : topTile,
                 new Vector3(0,1,0), new Vector3(0,1,1), new Vector3(1,1,1), new Vector3(1,1,0));
 
         if (FaceVisible(x, y, z, 0, -1, 0))
             AddQuad(vertices, trianglesByMaterial[materialIndex], uvs, basePosition,
-                isGrassMaterial ? dirtTile : fullTile,
+                isGrassMaterial ? dirtTile : sideTile,
                 new Vector3(0,0,0), new Vector3(1,0,0), new Vector3(1,0,1), new Vector3(0,0,1));
     }
 

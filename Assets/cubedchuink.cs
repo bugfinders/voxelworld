@@ -4,6 +4,7 @@ using UnityEngine.InputSystem;
 public class ChunkedVoxelTerrain : MonoBehaviour
 {
     public Material[] materials;
+    [SerializeField] private PlaceableItemAsset[] placeableItems = new PlaceableItemAsset[0];
     public float[] materialWeights = { 0f, 45f, 25f, 10f, 7f, 6f, 3f, 2f, 1f, 0.2f, 0.8f };
     public int grassMaterialIndex = 0;
     public Transform player;
@@ -25,13 +26,23 @@ public class ChunkedVoxelTerrain : MonoBehaviour
     private const int CHUNK_SIZE = 25;
     private const string DIRT_MATERIAL_NAME = "Dirt";
     private const string WOOD_MATERIAL_NAME = "Wood";
+    
     private const string LEAVES_MATERIAL_NAME = "Leaves";
-    private const int TREE_GRID_SPACING = 24;
+    private const int TREE_GRID_SPACING = 16;
+    private const int TREE_CLUSTER_GRID_SPACING = 72;
+    private const int TREE_CLUSTER_RADIUS = 14;
+    private const int TREE_CLUSTER_MIN_COUNT = 3;
+    private const int TREE_CLUSTER_MAX_COUNT = 6;
     private const int TREE_TRUNK_HEIGHT = 4;
     private const int TREE_CANOPY_RADIUS = 2;
-    private const float TREE_SPAWN_CHANCE = 0.12f;
+    private const float TREE_SPAWN_CHANCE = 0.27f;
+    private const float TREE_CLUSTER_SPAWN_CHANCE = 0.75f;
+    private const int TREE_CLEARANCE_RADIUS = 5;
+    private const float PLACEMENT_OVERLAP_EPSILON = 0.01f;
     private Vector3 currentVoxel = Vector3.zero;
+    private Vector3Int currentPlacementCoordinate = Vector3Int.zero;
     private bool hasTarget;
+    private bool hasPlacementTarget;
 
     public VoxelInventory Inventory => inventory;
 
@@ -43,7 +54,7 @@ public class ChunkedVoxelTerrain : MonoBehaviour
         inventory = GetComponent<VoxelInventory>();
         if (inventory == null)
             inventory = gameObject.AddComponent<VoxelInventory>();
-        inventory.Initialize(materials);
+        inventory.Initialize(materials, placeableItems);
     }
 
     private void Start()
@@ -252,20 +263,89 @@ public class ChunkedVoxelTerrain : MonoBehaviour
         for (int x = TREE_GRID_SPACING / 2; x < SIZE_X; x += TREE_GRID_SPACING)
         for (int z = TREE_GRID_SPACING / 2; z < SIZE_Z; z += TREE_GRID_SPACING)
         {
-            if (Mathf.Abs(x - centerX) < TREE_GRID_SPACING || Mathf.Abs(z - centerZ) < TREE_GRID_SPACING)
+            if (IsNearPlayerSpawn(x, z, centerX, centerZ))
                 continue;
 
-            uint hash = (uint)(x * 92837111 ^ z * 689287499);
+            uint hash = GetTreeHash(x, z, 17);
             float roll = hash / (float)uint.MaxValue;
-            if (roll > TREE_SPAWN_CHANCE)
-                continue;
-
-            int surfaceHeight = FindSurfaceHeight(x, z);
-            if (surfaceHeight < MIN_HEIGHT || surfaceHeight + TREE_TRUNK_HEIGHT + TREE_CANOPY_RADIUS >= MAX_HEIGHT)
-                continue;
-
-            PlaceTree(x, surfaceHeight + 1, z, woodMaterialIndex, leavesMaterialIndex);
+            if (roll <= TREE_SPAWN_CHANCE)
+                TryPlaceTreeAt(x, z, woodMaterialIndex, leavesMaterialIndex);
         }
+
+        for (int x = TREE_CLUSTER_GRID_SPACING / 2; x < SIZE_X; x += TREE_CLUSTER_GRID_SPACING)
+        for (int z = TREE_CLUSTER_GRID_SPACING / 2; z < SIZE_Z; z += TREE_CLUSTER_GRID_SPACING)
+        {
+            if (IsNearPlayerSpawn(x, z, centerX, centerZ))
+                continue;
+
+            uint clusterHash = GetTreeHash(x, z, 31);
+            float clusterRoll = clusterHash / (float)uint.MaxValue;
+            if (clusterRoll > TREE_CLUSTER_SPAWN_CHANCE)
+                continue;
+
+            int treeCount = TREE_CLUSTER_MIN_COUNT + (int)(GetTreeHash(x, z, 43) % (uint)(TREE_CLUSTER_MAX_COUNT - TREE_CLUSTER_MIN_COUNT + 1));
+            for (int treeIndex = 0; treeIndex < treeCount; treeIndex++)
+            {
+                uint positionHash = GetTreeHash(x, z, 101 + treeIndex * 2);
+                int offsetX = GetHashRange(positionHash, -TREE_CLUSTER_RADIUS, TREE_CLUSTER_RADIUS);
+                int offsetZ = GetHashRange(GetTreeHash(x, z, 102 + treeIndex * 2), -TREE_CLUSTER_RADIUS, TREE_CLUSTER_RADIUS);
+                TryPlaceTreeAt(x + offsetX, z + offsetZ, woodMaterialIndex, leavesMaterialIndex);
+            }
+        }
+    }
+
+    private bool IsNearPlayerSpawn(int x, int z, int centerX, int centerZ)
+    {
+        return Mathf.Abs(x - centerX) < TREE_GRID_SPACING || Mathf.Abs(z - centerZ) < TREE_GRID_SPACING;
+    }
+
+    private bool TryPlaceTreeAt(int x, int z, int woodMaterialIndex, int leavesMaterialIndex)
+    {
+        if (x < TREE_CANOPY_RADIUS || x >= SIZE_X - TREE_CANOPY_RADIUS || z < TREE_CANOPY_RADIUS || z >= SIZE_Z - TREE_CANOPY_RADIUS)
+            return false;
+
+        int surfaceHeight = FindSurfaceHeight(x, z);
+        if (surfaceHeight < MIN_HEIGHT || surfaceHeight + TREE_TRUNK_HEIGHT + TREE_CANOPY_RADIUS >= MAX_HEIGHT)
+            return false;
+        if (HasNearbyTree(x, z, surfaceHeight, woodMaterialIndex, leavesMaterialIndex))
+            return false;
+
+        PlaceTree(x, surfaceHeight + 1, z, woodMaterialIndex, leavesMaterialIndex);
+        return true;
+    }
+
+    private bool HasNearbyTree(int x, int z, int surfaceHeight, int woodMaterialIndex, int leavesMaterialIndex)
+    {
+        int minX = Mathf.Max(0, x - TREE_CLEARANCE_RADIUS);
+        int maxX = Mathf.Min(SIZE_X - 1, x + TREE_CLEARANCE_RADIUS);
+        int minZ = Mathf.Max(0, z - TREE_CLEARANCE_RADIUS);
+        int maxZ = Mathf.Min(SIZE_Z - 1, z + TREE_CLEARANCE_RADIUS);
+        for (int nearbyX = minX; nearbyX <= maxX; nearbyX++)
+        for (int nearbyZ = minZ; nearbyZ <= maxZ; nearbyZ++)
+        for (int y = Mathf.Max(MIN_HEIGHT, surfaceHeight - TREE_CANOPY_RADIUS); y <= MAX_HEIGHT; y++)
+        {
+            if (!solid[nearbyX, y, nearbyZ])
+                continue;
+
+            int materialIndex = voxelMaterials[nearbyX, y, nearbyZ];
+            if (materialIndex == woodMaterialIndex || materialIndex == leavesMaterialIndex)
+                return true;
+        }
+
+        return false;
+    }
+
+    private static uint GetTreeHash(int x, int z, int salt)
+    {
+        unchecked
+        {
+            return (uint)(x * 92837111 ^ z * 689287499 ^ salt * 1597334677);
+        }
+    }
+
+    private static int GetHashRange(uint hash, int minimum, int maximum)
+    {
+        return minimum + (int)(hash % (uint)(maximum - minimum + 1));
     }
 
     private int FindSurfaceHeight(int x, int z)
@@ -383,6 +463,8 @@ public class ChunkedVoxelTerrain : MonoBehaviour
     /// </summary>
     public bool IsSolid(int x, int y, int z)
     {
+        if (solid == null)
+            return false;
         if (x < 0 || x >= SIZE_X) return false;
         if (y < 0 || y > MAX_HEIGHT) return false;
         if (z < 0 || z >= SIZE_Z) return false;
@@ -415,15 +497,21 @@ public class ChunkedVoxelTerrain : MonoBehaviour
 
     private void FixedUpdate()
     {
-        if (control != null && control.doAction == voxelAction.dig)
-        {
-            control.doAction = voxelAction.nothing;
-            if (hasTarget)
-                DeleteVoxel(currentVoxel);
-        }
+        bool placeRequested = control != null && control.ConsumePlaceRequest();
+        bool useRequested = control != null && control.ConsumeUseRequest();
+        bool mineRequested = control != null && control.ConsumeMineRequest();
 
         if (chunks == null)
             return;
+
+        if (placeRequested)
+            TryPlaceSelectedBlock();
+
+        if (useRequested)
+            TryUseCurrentTarget();
+
+        if (mineRequested && hasTarget)
+            DeleteVoxel(currentVoxel);
 
         DrawVisibleChunks();
         if (Mouse.current != null)
@@ -442,7 +530,69 @@ public class ChunkedVoxelTerrain : MonoBehaviour
         int materialIndex = voxelMaterials[voxelX, voxelY, voxelZ];
         solid[voxelX, voxelY, voxelZ] = false;
         inventory.Add(GetDropMaterialIndex(materialIndex));
+        RebuildVoxelAndNeighbors(voxelX, voxelZ);
+    }
 
+    private bool TryPlaceSelectedBlock()
+    {
+        if (solid == null || voxelMaterials == null || materials == null || chunks == null || inventory == null || !hasPlacementTarget)
+            return false;
+        if (IsRestrictedStationTopPlacement())
+            return false;
+
+        if (!inventory.TryGetSelectedMaterialIndex(out int materialIndex))
+            return false;
+        if (materialIndex < 0 || materialIndex >= materials.Length)
+            return false;
+        if (!IsValidPlacementCoordinate(currentPlacementCoordinate))
+            return false;
+        if (IsPlacementOverlappingPlayer(currentPlacementCoordinate))
+            return false;
+        if (!inventory.TryConsumeSelectedMaterial(out materialIndex))
+            return false;
+
+        SetVoxel(currentPlacementCoordinate, materialIndex);
+        RebuildVoxelAndNeighbors(currentPlacementCoordinate.x, currentPlacementCoordinate.z);
+        return true;
+    }
+
+    private bool IsPlacementOverlappingPlayer(Vector3Int target)
+    {
+        if (player == null)
+            return false;
+
+        Vector3 center = new Vector3(target.x + 0.5f, target.y + 0.5f, target.z + 0.5f);
+        Vector3 halfExtents = Vector3.one * (0.5f - PLACEMENT_OVERLAP_EPSILON);
+        Collider[] overlaps = Physics.OverlapBox(center, halfExtents, Quaternion.identity, ~0, QueryTriggerInteraction.Ignore);
+        for (int i = 0; i < overlaps.Length; i++)
+        {
+            Collider overlap = overlaps[i];
+            if (overlap != null && (overlap.transform == player || overlap.transform.IsChildOf(player)))
+                return true;
+        }
+
+        return false;
+    }
+
+    private bool IsValidPlacementCoordinate(Vector3Int target)
+    {
+        if (solid == null || target.x < 0 || target.x >= SIZE_X || target.y < MIN_HEIGHT || target.y > MAX_HEIGHT || target.z < 0 || target.z >= SIZE_Z)
+            return false;
+
+        return !solid[target.x, target.y, target.z];
+    }
+
+    private void SetVoxel(Vector3Int coordinate, int materialIndex)
+    {
+        if (!IsValidPlacementCoordinate(coordinate) || materials == null || materialIndex < 0 || materialIndex >= materials.Length)
+            return;
+
+        solid[coordinate.x, coordinate.y, coordinate.z] = true;
+        voxelMaterials[coordinate.x, coordinate.y, coordinate.z] = materialIndex;
+    }
+
+    private void RebuildVoxelAndNeighbors(int voxelX, int voxelZ)
+    {
         int chunkX = voxelX / CHUNK_SIZE;
         int chunkZ = voxelZ / CHUNK_SIZE;
         RebuildChunk(chunkX, chunkZ);
@@ -451,6 +601,65 @@ public class ChunkedVoxelTerrain : MonoBehaviour
         if (voxelX % CHUNK_SIZE == CHUNK_SIZE - 1) RebuildChunk(chunkX + 1, chunkZ);
         if (voxelZ % CHUNK_SIZE == 0) RebuildChunk(chunkX, chunkZ - 1);
         if (voxelZ % CHUNK_SIZE == CHUNK_SIZE - 1) RebuildChunk(chunkX, chunkZ + 1);
+    }
+
+    private bool IsRestrictedStationTopPlacement()
+    {
+        if (!hasPlacementTarget || solid == null || voxelMaterials == null || materials == null)
+            return false;
+
+        Vector3Int stationCoordinate = currentPlacementCoordinate + Vector3Int.down;
+        if (!IsSolid(stationCoordinate.x, stationCoordinate.y, stationCoordinate.z))
+            return false;
+
+        int materialIndex = voxelMaterials[stationCoordinate.x, stationCoordinate.y, stationCoordinate.z];
+        if (materialIndex < 0 || materialIndex >= materials.Length || materials[materialIndex] == null)
+            return false;
+
+        PlaceableItemAsset placeableItem = GetPlaceableItemForMaterialIndex(materialIndex);
+        return placeableItem != null && placeableItem.BlocksTopPlacement;
+    }
+
+    private PlaceableItemAsset GetPlaceableItemForMaterialIndex(int materialIndex)
+    {
+        if (materials == null || materialIndex < 0 || materialIndex >= materials.Length || placeableItems == null)
+            return null;
+
+        Material material = materials[materialIndex];
+        for (int i = 0; i < placeableItems.Length; i++)
+        {
+            PlaceableItemAsset placeableItem = placeableItems[i];
+            if (placeableItem != null && placeableItem.IsValid && placeableItem.MatchesMaterial(material))
+                return placeableItem;
+        }
+
+        return null;
+    }
+
+    private bool TryUseCurrentTarget()
+    {
+        if (!hasTarget || solid == null || voxelMaterials == null || materials == null)
+            return false;
+
+        int voxelX = Mathf.FloorToInt(currentVoxel.x);
+        int voxelY = Mathf.FloorToInt(currentVoxel.y);
+        int voxelZ = Mathf.FloorToInt(currentVoxel.z);
+        if (!IsSolid(voxelX, voxelY, voxelZ))
+            return false;
+
+        int materialIndex = voxelMaterials[voxelX, voxelY, voxelZ];
+        if (materialIndex < 0 || materialIndex >= materials.Length || materials[materialIndex] == null)
+            return false;
+        PlaceableItemAsset placeableItem = GetPlaceableItemForMaterialIndex(materialIndex);
+        if (placeableItem == null || !placeableItem.OpensCraftingMenu)
+            return false;
+
+        VoxelInventoryUI inventoryUI = UnityEngine.Object.FindFirstObjectByType<VoxelInventoryUI>();
+        if (inventoryUI == null)
+            return false;
+
+        inventoryUI.OpenStation(placeableItem);
+        return true;
     }
     private int GetDropMaterialIndex(int materialIndex)
     {
@@ -477,37 +686,72 @@ public class ChunkedVoxelTerrain : MonoBehaviour
     }
 
     /// <summary>
-    /// Updates the highlighted voxel from a screen-space mouse position.
+    /// Updates the highlighted voxel and its face-adjacent placement coordinate from a screen-space mouse position.
     /// </summary>
     public void UpdateHighlightedVoxel(Vector2 mousePosition)
     {
-        Ray ray = cam.ScreenPointToRay(new Vector3(mousePosition.x, mousePosition.y, 0f));
-
-        if (Physics.Raycast(ray, out RaycastHit hit, 10f))
+        if (cam != null)
         {
-            Vector3 insidePoint = hit.point - hit.normal * 0.001f;
-            int voxelX = Mathf.FloorToInt(insidePoint.x);
-            int voxelY = Mathf.FloorToInt(insidePoint.y);
-            int voxelZ = Mathf.FloorToInt(insidePoint.z);
+            Ray ray = cam.ScreenPointToRay(new Vector3(mousePosition.x, mousePosition.y, 0f));
 
-            if (IsSolid(voxelX, voxelY, voxelZ))
+            if (Physics.Raycast(ray, out RaycastHit hit, 10f) && TryGetPlacementCoordinate(hit, out Vector3Int placementCoordinate))
             {
-                Vector3 aimedVoxel = new Vector3(voxelX, voxelY, voxelZ);
+                Vector3 insidePoint = hit.point - hit.normal * 0.001f;
+                Vector3 aimedVoxel = new Vector3(
+                    Mathf.FloorToInt(insidePoint.x),
+                    Mathf.FloorToInt(insidePoint.y),
+                    Mathf.FloorToInt(insidePoint.z));
+
                 if (!hasTarget || aimedVoxel != currentVoxel)
-                    control.ResetDigTimer();
+                {
+                    if (control != null)
+                        control.ResetDigTimer();
+                }
 
                 currentVoxel = aimedVoxel;
+                currentPlacementCoordinate = placementCoordinate;
                 hasTarget = true;
+                hasPlacementTarget = true;
                 SetHoverCube(currentVoxel);
                 return;
             }
         }
 
-        hoverCube.SetActive(false);
-        if (hasTarget)
+        if (hoverCube != null)
+            hoverCube.SetActive(false);
+        if (hasTarget && control != null)
             control.ResetDigTimer();
         currentVoxel = Vector3.zero;
+        currentPlacementCoordinate = Vector3Int.zero;
         hasTarget = false;
+        hasPlacementTarget = false;
+    }
+
+    private bool TryGetPlacementCoordinate(RaycastHit hit, out Vector3Int target)
+    {
+        target = Vector3Int.zero;
+        Vector3 insidePoint = hit.point - hit.normal * 0.001f;
+        Vector3Int solidCoordinate = new Vector3Int(
+            Mathf.FloorToInt(insidePoint.x),
+            Mathf.FloorToInt(insidePoint.y),
+            Mathf.FloorToInt(insidePoint.z));
+        if (!IsSolid(solidCoordinate.x, solidCoordinate.y, solidCoordinate.z))
+            return false;
+
+        Vector3 normal = hit.normal;
+        float absX = Mathf.Abs(normal.x);
+        float absY = Mathf.Abs(normal.y);
+        float absZ = Mathf.Abs(normal.z);
+        Vector3Int faceDirection;
+        if (absX >= absY && absX >= absZ)
+            faceDirection = new Vector3Int(normal.x >= 0f ? 1 : -1, 0, 0);
+        else if (absY >= absX && absY >= absZ)
+            faceDirection = new Vector3Int(0, normal.y >= 0f ? 1 : -1, 0);
+        else
+            faceDirection = new Vector3Int(0, 0, normal.z >= 0f ? 1 : -1);
+
+        target = solidCoordinate + faceDirection;
+        return true;
     }
 
     private void DrawVisibleChunks()
