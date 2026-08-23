@@ -447,7 +447,7 @@ MonoBehaviour:
   - {fileID: 11400000, guid: bdbbe7710b100a94a85ae366eff26287, type: 2}
   - {fileID: 11400000, guid: b17441e7331b7184f8b21f595220b29b, type: 2}
   - {fileID: 11400000, guid: 87cfeb4103125fe47bfef7e3a5b3a339, type: 2}
-  generationProfile: {fileID: 11400000, guid: c1cd1645c996fb44086b6701b1fe63c5, type: 2}
+  generationProfile: {fileID: 11400000, guid: 51afeb59ccc4547418055455d6613920, type: 2}
   materialWeights:
   - 0
   - 45
@@ -617,7 +617,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 186b94b6fe034ba4a95ee3bb938e952d, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::WorldSnapshotCapture
   terrain: {fileID: 1470041108}
   delayFrames: 4

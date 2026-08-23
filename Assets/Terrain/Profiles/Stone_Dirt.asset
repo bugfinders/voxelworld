@@ -10,20 +10,20 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 54a2f274f45ad9a4198879e26cbefdec, type: 3}
-  m_Name: Stony
+  m_Name: Stone_Dirt
   m_EditorClassIdentifier: Assembly-CSharp::TerrainGenerationProfile
-  seed: 91637
-  heightNoiseScale: 0.018
+  seed: 184729
+  heightNoiseScale: 0.01
   heightOctaves: 3
-  heightPersistence: 0.55
-  heightLacunarity: 2.1
-  heightFloor: 0.05
-  heightAmplitude: 1
-  treeDensityMultiplier: 2
+  heightPersistence: 0.5
+  heightLacunarity: 2
+  heightFloor: 0
+  heightAmplitude: 0.298
+  treeDensityMultiplier: 3
   materialWeights:
   - 0
-  - 28
-  - 60
+  - 45
+  - 40
   - 0
   - 0
   - 0
