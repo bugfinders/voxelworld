@@ -8,16 +8,18 @@ public class InventorySlotData
     [SerializeField] private string displayName;
     [SerializeField] private int count;
     [SerializeField] private Texture2D icon;
+    [SerializeField] private string itemKind;
 
     /// <summary>
     /// Creates a normalized inventory slot entry.
     /// </summary>
-    public InventorySlotData(string itemId, string displayName, int count, Texture2D icon)
+    public InventorySlotData(string itemId, string displayName, int count, Texture2D icon, string itemKind = "Item")
     {
         this.itemId = NormalizeItemId(itemId);
         this.displayName = NormalizeDisplayName(displayName, this.itemId);
         this.count = Mathf.Max(0, count);
         this.icon = icon;
+        this.itemKind = NormalizeItemKind(itemKind);
     }
 
     /// <summary>
@@ -31,13 +33,15 @@ public class InventorySlotData
     public string DisplayName => displayName;
 
     /// <summary>
+    /// Gets the broad category shown by the inventory tooltip.
+    /// </summary>
+    public string ItemKind => string.IsNullOrWhiteSpace(itemKind) ? "Item" : itemKind;
+
+    /// <summary>
     /// Gets the non-negative item count.
     /// </summary>
     public int Count => count;
 
-    /// <summary>
-    /// Gets the optional texture displayed by the UI Toolkit slot.
-    /// </summary>
     public Texture2D Icon => icon;
 
     /// <summary>
@@ -50,7 +54,7 @@ public class InventorySlotData
         itemId = string.Empty;
         displayName = string.Empty;
         count = 0;
-        icon = null;
+        itemKind = "Item";
     }
 
     internal void SetCount(int value)
@@ -62,12 +66,10 @@ public class InventorySlotData
     {
         itemId = NormalizeItemId(itemId);
         displayName = NormalizeDisplayName(displayName, itemId);
-        count = Mathf.Max(0, count);
+        itemKind = NormalizeItemKind(itemKind);
         if (string.IsNullOrEmpty(itemId) || count == 0)
             Clear();
     }
-
-
 
     private static string NormalizeItemId(string value)
     {
@@ -77,5 +79,10 @@ public class InventorySlotData
     private static string NormalizeDisplayName(string value, string normalizedItemId)
     {
         return string.IsNullOrWhiteSpace(value) ? normalizedItemId : value.Trim();
+    }
+
+    private static string NormalizeItemKind(string value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? "Item" : value.Trim();
     }
 }

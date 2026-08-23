@@ -6,12 +6,14 @@ public class VoxelInventory : MonoBehaviour
 {
     public const int HotbarSlotCount = 10;
     public const int AdditionalSlotCount = 20;
+    private const int SingleItemTransferAmount = 1;
 
     [SerializeField] private List<InventorySlotData> hotbarSlots = new List<InventorySlotData>();
     [SerializeField] private List<InventorySlotData> additionalSlots = new List<InventorySlotData>();
 
     
     private readonly List<InventorySlotData> materialDefinitions = new List<InventorySlotData>();
+    private readonly HashSet<string> harvestedItemIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
     private int materialCount;
     private bool isInitialized;
     private int selectedSlotIndex = -1;
@@ -41,6 +43,33 @@ public class VoxelInventory : MonoBehaviour
         }
     }
 
+    public IReadOnlyCollection<string> HarvestedItemIds => harvestedItemIds;
+
+    /// <summary>
+    /// Returns whether the player has harvested at least one item with the supplied identifier.
+    /// </summary>
+    public bool HasEverHarvested(string itemId)
+    {
+        string normalizedItemId = itemId.Trim();
+        return harvestedItemIds.Contains(normalizedItemId) || GetItemCount(normalizedItemId) > 0;
+    }
+
+    /// <summary>
+    /// Restores the set of item identifiers harvested in a previous world session.
+    /// </summary>
+    public void RestoreHarvestedItemIds(IEnumerable<string> itemIds)
+    {
+        harvestedItemIds.Clear();
+        if (itemIds == null)
+            return;
+
+        foreach (string itemId in itemIds)
+        {
+            if (!string.IsNullOrWhiteSpace(itemId))
+                harvestedItemIds.Add(itemId.Trim());
+        }
+    }
+
     /// <summary>
     /// Initializes the ten-slot hotbar and twenty-slot inventory panel from terrain materials.
     /// </summary>
@@ -56,6 +85,7 @@ public class VoxelInventory : MonoBehaviour
             additionalSlots[i] = CreateEmptySlot();
 
         materialDefinitions.Clear();
+        harvestedItemIds.Clear();
         materialCount = materials == null ? 0 : materials.Length;
         for (int i = 0; i < materialCount; i++)
             materialDefinitions.Add(CreateEmptySlot());
@@ -76,6 +106,8 @@ public class VoxelInventory : MonoBehaviour
 
         InventorySlotData definition = materialDefinitions[materialIndex];
         string itemId = definition.ItemId;
+        bool newlyHarvested = !string.IsNullOrWhiteSpace(itemId) && harvestedItemIds.Add(itemId.Trim());
+
         InventorySlotData existingSlot = FindSlotByItemId(itemId);
         if (existingSlot != null)
         {
@@ -94,9 +126,13 @@ public class VoxelInventory : MonoBehaviour
         }
 
         if (targetIndex < 0)
+        {
+            if (newlyHarvested)
+                NotifyInventoryChanged();
             return;
+        }
 
-        targetList[targetIndex] = new InventorySlotData(itemId, definition.DisplayName, 1, definition.Icon);
+        targetList[targetIndex] = new InventorySlotData(itemId, definition.DisplayName, 1, definition.Icon, definition.ItemKind);
         Debug.Log($"Inventory: {definition.DisplayName} = 1");
         NotifyInventoryChanged();
     }
@@ -126,7 +162,7 @@ public class VoxelInventory : MonoBehaviour
         if (emptyIndex < 0)
             return false;
 
-        additionalSlots[emptyIndex] = new InventorySlotData(normalizedId, displayName, amount, icon);
+        additionalSlots[emptyIndex] = new InventorySlotData(normalizedId, displayName, amount, icon, ResolveItemKind(normalizedId));
         NotifyInventoryChanged();
         return true;
     }
@@ -237,9 +273,123 @@ public class VoxelInventory : MonoBehaviour
         if (emptyIndex < 0)
             return false;
 
-        targetList[emptyIndex] = new InventorySlotData(normalizedId, displayName, amount, icon);
+        targetList[emptyIndex] = new InventorySlotData(normalizedId, displayName, amount, icon, ResolveItemKind(normalizedId));
         NotifyInventoryChanged();
         return true;
+    }
+
+    /// <summary>
+    /// Moves, merges, or swaps an item between any two inventory or hotbar slots.
+    public bool TryMoveItem(bool sourceHotbar, int sourceIndex, bool targetHotbar, int targetIndex)
+    {
+        if (!isInitialized || sourceHotbar == targetHotbar && sourceIndex == targetIndex)
+            return false;
+
+        EnsureHotbarSlots();
+        EnsureAdditionalSlots();
+        List<InventorySlotData> sourceSlots = sourceHotbar ? hotbarSlots : additionalSlots;
+        List<InventorySlotData> targetSlots = targetHotbar ? hotbarSlots : additionalSlots;
+        int sourceLimit = sourceHotbar ? HotbarSlotCount : AdditionalSlotCount;
+        int targetLimit = targetHotbar ? HotbarSlotCount : AdditionalSlotCount;
+        if (sourceIndex < 0 || sourceIndex >= sourceLimit || targetIndex < 0 || targetIndex >= targetLimit)
+            return false;
+
+        InventorySlotData source = sourceSlots[sourceIndex];
+        InventorySlotData target = targetSlots[targetIndex];
+        if (source == null || source.IsEmpty)
+            return false;
+
+        int previousSelectedIndex = selectedSlotIndex;
+        bool merged = target != null && !target.IsEmpty && string.Equals(source.ItemId, target.ItemId, StringComparison.OrdinalIgnoreCase);
+        if (merged)
+        {
+            if (!CanIncreaseCount(target.Count, source.Count))
+                return false;
+
+            target.SetCount(target.Count + source.Count);
+            source.Clear();
+        }
+        else
+        {
+            sourceSlots[sourceIndex] = target == null ? CreateEmptySlot() : target;
+            targetSlots[targetIndex] = source;
+        }
+
+        UpdateSelectionAfterMove(sourceHotbar, sourceIndex, targetHotbar, targetIndex, merged, previousSelectedIndex);
+        NotifyInventoryChanged();
+        return true;
+    }
+
+    /// <summary>
+    /// Transfers an additional-inventory stack into the hotbar, taking one item when requested.
+    /// </summary>
+    public bool TryTakeAdditionalItemToHotbar(int additionalIndex, bool takeOne)
+    {
+        if (!isInitialized || additionalIndex < 0 || additionalIndex >= AdditionalSlotCount)
+            return false;
+
+        EnsureHotbarSlots();
+        EnsureAdditionalSlots();
+        InventorySlotData source = additionalSlots[additionalIndex];
+        if (source == null || source.IsEmpty)
+            return false;
+
+        int targetIndex = FindMatchingSlotIndex(hotbarSlots, source.ItemId);
+        if (targetIndex < 0)
+            targetIndex = FindEmptySlotIndex(hotbarSlots);
+        if (targetIndex < 0)
+            return false;
+
+        InventorySlotData target = hotbarSlots[targetIndex];
+        int amount = takeOne ? SingleItemTransferAmount : source.Count;
+        if (target != null && !target.IsEmpty)
+        {
+            if (!CanIncreaseCount(target.Count, amount))
+                return false;
+            target.SetCount(target.Count + amount);
+        }
+        else
+        {
+            hotbarSlots[targetIndex] = new InventorySlotData(source.ItemId, source.DisplayName, amount, source.Icon, source.ItemKind);
+        }
+
+        source.SetCount(source.Count - amount);
+        if (source.Count == 0)
+            source.Clear();
+        NotifyInventoryChanged();
+        return true;
+    }
+
+    private void UpdateSelectionAfterMove(bool sourceHotbar, int sourceIndex, bool targetHotbar, int targetIndex, bool merged, int previousSelectedIndex)
+    {
+        int nextSelectedIndex = previousSelectedIndex;
+        if (sourceHotbar && previousSelectedIndex == sourceIndex)
+            nextSelectedIndex = targetHotbar ? targetIndex : -1;
+        else if (targetHotbar && previousSelectedIndex == targetIndex && !merged)
+            nextSelectedIndex = sourceHotbar ? sourceIndex : -1;
+
+        if (nextSelectedIndex != previousSelectedIndex)
+        {
+            selectedSlotIndex = IsValidHotbarIndex(nextSelectedIndex) && !hotbarSlots[nextSelectedIndex].IsEmpty
+                ? nextSelectedIndex
+                : -1;
+            SelectionChanged?.Invoke(selectedSlotIndex);
+        }
+    }
+
+    private static int FindMatchingSlotIndex(List<InventorySlotData> slots, string itemId)
+    {
+        if (slots == null || string.IsNullOrWhiteSpace(itemId))
+            return -1;
+
+        for (int i = 0; i < slots.Count; i++)
+        {
+            InventorySlotData slot = slots[i];
+            if (slot != null && !slot.IsEmpty && string.Equals(slot.ItemId, itemId.Trim(), StringComparison.OrdinalIgnoreCase))
+                return i;
+        }
+
+        return -1;
     }
 
     /// <summary>
@@ -457,7 +607,8 @@ public class VoxelInventory : MonoBehaviour
             ? definition == null ? savedSlot.itemId : definition.DisplayName
             : savedSlot.displayName;
         Texture2D icon = definition == null ? null : definition.Icon;
-        return new InventorySlotData(savedSlot.itemId, displayName, savedSlot.count, icon);
+        string itemKind = definition == null ? "Item" : definition.ItemKind;
+        return new InventorySlotData(savedSlot.itemId, displayName, savedSlot.count, icon, itemKind);
     }
 
     private InventorySlotData FindDefinitionByItemId(string itemId)
@@ -473,6 +624,12 @@ public class VoxelInventory : MonoBehaviour
         }
 
         return null;
+    }
+
+    private string ResolveItemKind(string itemId)
+    {
+        InventorySlotData definition = FindDefinitionByItemId(itemId);
+        return definition == null ? "Item" : definition.ItemKind;
     }
 
     private void EnsureHotbarSlots()
@@ -509,7 +666,7 @@ public class VoxelInventory : MonoBehaviour
             return;
 
         materialDefinitions[materialIndex] = placeableItem != null && placeableItem.IsValid
-            ? new InventorySlotData(placeableItem.ItemId, placeableItem.DisplayName, 0, placeableItem.Icon)
+            ? new InventorySlotData(placeableItem.ItemId, placeableItem.DisplayName, 0, placeableItem.Icon, placeableItem.ItemKind)
             : CreateMaterialSlot(materialIndex, material);
     }
 
@@ -541,7 +698,7 @@ public class VoxelInventory : MonoBehaviour
                 icon = material.GetTexture("_MainTex") as Texture2D;
         }
 
-        return new InventorySlotData(itemId, displayName, 0, icon);
+        return new InventorySlotData(itemId, displayName, 0, icon, "Resource");
     }
 
     private InventorySlotData GetMaterialSlot(int materialIndex)
@@ -737,7 +894,7 @@ public class VoxelInventory : MonoBehaviour
         if (emptyIndex < 0)
             return false;
 
-        targetList[emptyIndex] = new InventorySlotData(normalizedId, displayName, amount, icon);
+        targetList[emptyIndex] = new InventorySlotData(normalizedId, displayName, amount, icon, ResolveItemKind(normalizedId));
         return true;
     }
 

@@ -10,7 +10,7 @@ public sealed class CraftingRecipeAsset : ScriptableObject
     [SerializeField] private string outputDisplayName;
     [SerializeField] private int outputAmount = 1;
     [SerializeField] private Texture2D outputIcon;
-    [SerializeField] private CraftingStationType requiredStation;
+    [SerializeField] private CraftingRecipeType recipeType = CraftingRecipeType.Basic;
     [SerializeField] private string[] ingredientItemIds = new string[0];
     [SerializeField] private int[] ingredientAmounts = new int[0];
 
@@ -29,6 +29,6 @@ public sealed class CraftingRecipeAsset : ScriptableObject
         string resolvedOutputItemId = outputItem != null && !string.IsNullOrWhiteSpace(outputItem.ItemId) ? outputItem.ItemId : outputItemId;
         string resolvedDisplayName = outputItem != null ? outputItem.DisplayName : outputDisplayName;
         Texture2D resolvedIcon = outputItem != null && outputItem.Icon != null ? outputItem.Icon : outputIcon;
-        return new CraftingRecipe(recipeId, resolvedOutputItemId, resolvedDisplayName, outputAmount, requiredStation, resolvedIcon, runtimeIngredients.ToArray());
+        return new CraftingRecipe(recipeId, resolvedOutputItemId, resolvedDisplayName, outputAmount, recipeType, resolvedIcon, runtimeIngredients.ToArray());
     }
 }

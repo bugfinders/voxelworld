@@ -18,7 +18,7 @@ MonoBehaviour:
   outputDisplayName: Chest
   outputAmount: 1
   outputIcon: {fileID: 0}
-  requiredStation: 1
+  recipeType: 2
   ingredientItemIds:
   - Wood
   ingredientAmounts: 06000000i

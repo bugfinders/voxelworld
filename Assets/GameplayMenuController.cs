@@ -50,6 +50,7 @@ public sealed class GameplayMenuController : MonoBehaviour
         fullscreenToggle.RegisterValueChangedCallback(OnSettingsChanged);
         LoadSettingsIntoControls();
         SetMenuVisible(false);
+        SetGameplayCursor();
     }
 
     private void OnDisable()
@@ -76,8 +77,7 @@ public sealed class GameplayMenuController : MonoBehaviour
     private void OpenMenu()
     {
         SetMenuVisible(true);
-        UnityEngine.Cursor.visible = true;
-        UnityEngine.Cursor.lockState = CursorLockMode.None;
+        SetGameplayCursor();
         if (playerController != null)
             playerController.enabled = false;
     }
@@ -86,10 +86,16 @@ public sealed class GameplayMenuController : MonoBehaviour
     {
         settingsPanel.style.display = DisplayStyle.None;
         SetMenuVisible(false);
-        UnityEngine.Cursor.visible = false;
-        UnityEngine.Cursor.lockState = CursorLockMode.Locked;
+        SetGameplayCursor();
         if (playerController != null)
             playerController.enabled = true;
+    }
+
+
+    private static void SetGameplayCursor()
+    {
+        UnityEngine.Cursor.lockState = CursorLockMode.None;
+        UnityEngine.Cursor.visible = true;
     }
 
     private void SetMenuVisible(bool visible)

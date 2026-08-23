@@ -210,11 +210,22 @@
     color: var(--inventory-text-color);
 }
 
+.crafting-unavailable-toggle {
+    flex-direction: row;
+    align-items: center;
+    color: var(--inventory-text-color);
+    margin-left: 8px;
+    margin-right: 8px;
+}
+
+.crafting-unavailable-toggle .unity-toggle__label {
+    color: var(--inventory-text-color);
+}
+
 .crafting-station-selector {
     flex-direction: row;
     align-items: center;
 }
-
 .crafting-station-button {
     margin-left: 4px;
 }
@@ -353,5 +364,38 @@
     border-right-color: rgb(255, 214, 76);
     border-top-color: rgb(255, 214, 76);
     border-bottom-color: rgb(255, 214, 76);
+}
+
+
+.inventory-item-tooltip {
+    display: none;
+    position: absolute;
+    min-width: 150px;
+    max-width: 260px;
+    padding-left: 10px;
+    padding-right: 10px;
+    padding-top: 7px;
+    padding-bottom: 7px;
+    background-color: rgba(10, 14, 22, 0.96);
+    border-left-width: 1px;
+    border-right-width: 1px;
+    border-top-width: 1px;
+    border-bottom-width: 1px;
+    border-left-color: rgba(170, 185, 205, 0.9);
+    border-right-color: rgba(170, 185, 205, 0.9);
+    border-top-color: rgba(170, 185, 205, 0.9);
+    border-bottom-color: rgba(170, 185, 205, 0.9);
+}
+
+.inventory-item-tooltip__name {
+    color: rgb(245, 247, 250);
+    font-size: 14px;
+    -unity-font-style: bold;
+}
+
+.inventory-item-tooltip__kind {
+    margin-top: 3px;
+    color: rgb(215, 222, 232);
+    font-size: 12px;
 }
 

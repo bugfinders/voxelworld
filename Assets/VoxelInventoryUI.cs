@@ -17,6 +17,9 @@ public class VoxelInventoryUI : MonoBehaviour
     public const string CountClass = "inventory-slot__count";
     public const string ItemNameClass = "inventory-slot__name";
     public const string KeyLabelClass = "inventory-slot__key";
+    public const string TooltipClass = "inventory-item-tooltip";
+    public const string TooltipNameClass = "inventory-item-tooltip__name";
+    public const string TooltipKindClass = "inventory-item-tooltip__kind";
     public const string AdditionalPanelVisibleClass = "inventory-additional-panel--visible";
     public const string CraftingVisibleClass = "crafting-content--visible";
     public const string CraftingStationActiveClass = "crafting-station--active";
@@ -28,30 +31,34 @@ public class VoxelInventoryUI : MonoBehaviour
     private const string HotbarSlotsName = "inventory-hotbar-slots";
     private const string AdditionalPanelName = "inventory-additional-panel";
     private const string PanelTitleName = "inventory-panel-title";
-    private const string CraftingToggleName = "inventory-crafting-toggle";
     private const string AdditionalContentName = "inventory-additional-content";
     private const string AdditionalScrollName = "inventory-additional-scroll";
     private const string CraftingContentName = "crafting-content";
     private const string CraftingReturnName = "crafting-inventory-return";
     private const string CraftingInventoryStationName = "crafting-station-inventory";
     private const string CraftingWorkbenchStationName = "crafting-station-workbench";
+    private const string CraftingUnavailableToggleName = "crafting-unavailable-toggle";
     private const string CraftingRecipeListName = "crafting-recipe-list";
+    private const string TooltipName = "inventory-item-tooltip";
+    private const string TooltipItemName = "inventory-tooltip-item-name";
+    private const string TooltipKindName = "inventory-tooltip-kind";
 
     public Key additionalInventoryToggleKey = Key.Tab;
     public Key craftingToggleKey = Key.C;
 
+    private static VoxelInventoryUI activeInstance;
     private UIDocument document;
     private VisualElement root;
     private VisualElement hotbarSlotsHost;
     private VisualElement additionalPanel;
     private Label panelTitle;
-    private Button craftingToggle;
     private VisualElement additionalContentHost;
     private VisualElement additionalScroll;
     private VisualElement craftingContentHost;
     private Button craftingReturnButton;
     private Button craftingInventoryStationButton;
     private Button craftingWorkbenchStationButton;
+    private Toggle craftingUnavailableToggle;
     private VisualElement craftingRecipeListHost;
     private ChunkedVoxelTerrain terrain;
     private VoxelInventory inventory;
@@ -59,14 +66,27 @@ public class VoxelInventoryUI : MonoBehaviour
     private VisualElement registeredRoot;
     private bool additionalInventoryVisible;
     private bool craftingVisible;
+    private bool showUnavailableRecipes;
     private bool cursorStateCaptured;
     private CursorLockMode previousCursorLockState;
     private bool previousCursorVisible;
     private int selectedAdditionalSlotIndex = -1;
     private readonly List<Button> registeredHotbarButtons = new List<Button>();
+    private bool dragSourceActive;
+    private bool dragSourceHotbar;
+    private int dragSourceIndex;
+    private int dragPointerId;
+    private VisualElement itemTooltip;
+    private Label tooltipItemName;
+    private Label tooltipKind;
+    private Button hoveredTooltipSlot;
+    private bool hoveredTooltipHotbar;
+    private int hoveredTooltipIndex = -1;
+    private Vector2 hoveredTooltipPosition;
 
     public bool AdditionalInventoryVisible => additionalInventoryVisible;
     public bool CraftingVisible => craftingVisible;
+    public static bool IsAnyWindowVisible => activeInstance != null && activeInstance.additionalInventoryVisible;
 
     private void Awake()
     {
@@ -75,6 +95,7 @@ public class VoxelInventoryUI : MonoBehaviour
 
     private void OnEnable()
     {
+        activeInstance = this;
         if (document == null)
             document = GetComponent<UIDocument>();
 
@@ -113,14 +134,16 @@ public class VoxelInventoryUI : MonoBehaviour
                 SelectHotbarSlot(9);
         }
 
-        if (Time.frameCount % 10 == 0 && (inventory == null || !inventory.IsInitialized || hotbarSlotsHost == null || additionalPanel == null || additionalContentHost == null || craftingSystem == null))
-            Refresh();
+        UpdateTooltipState();
     }
 
     private void OnDisable()
     {
         UnsubscribeFromInventory();
         UnsubscribeFromCrafting();
+        dragSourceActive = false;
+        if (activeInstance == this)
+            activeInstance = null;
         RestoreCursorState();
     }
 
@@ -128,6 +151,9 @@ public class VoxelInventoryUI : MonoBehaviour
     {
         UnsubscribeFromInventory();
         UnsubscribeFromCrafting();
+        dragSourceActive = false;
+        if (activeInstance == this)
+            activeInstance = null;
         RestoreCursorState();
     }
 
@@ -241,8 +267,15 @@ public class VoxelInventoryUI : MonoBehaviour
     }
 
     /// <summary>
-    /// Selects a visible hotbar slot through the inventory model.
+    /// Toggles whether discovered recipes missing materials remain visible.
     /// </summary>
+    public void ToggleUnavailableRecipes()
+    {
+        showUnavailableRecipes = !showUnavailableRecipes;
+        RefreshCraftingView();
+    }
+
+
     public void SelectHotbarSlot(int index)
     {
         if (inventory == null || !inventory.IsInitialized || index < 0 || index >= VoxelInventory.HotbarSlotCount)
@@ -270,7 +303,6 @@ public class VoxelInventoryUI : MonoBehaviour
             hotbarSlotsHost = root.Q<VisualElement>(HotbarSlotsName);
             additionalPanel = root.Q<VisualElement>(AdditionalPanelName);
             panelTitle = root.Q<Label>(PanelTitleName);
-            craftingToggle = root.Q<Button>(CraftingToggleName);
             additionalContentHost = root.Q<VisualElement>(AdditionalContentName);
             additionalScroll = root.Q<VisualElement>(AdditionalScrollName);
 
@@ -278,6 +310,7 @@ public class VoxelInventoryUI : MonoBehaviour
             craftingReturnButton = root.Q<Button>(CraftingReturnName);
             craftingInventoryStationButton = root.Q<Button>(CraftingInventoryStationName);
             craftingWorkbenchStationButton = root.Q<Button>(CraftingWorkbenchStationName);
+            craftingUnavailableToggle = root.Q<Toggle>(CraftingUnavailableToggleName);
             craftingRecipeListHost = root.Q<VisualElement>(CraftingRecipeListName);
             registeredRoot = null;
             registeredHotbarButtons.Clear();
@@ -342,17 +375,6 @@ public class VoxelInventoryUI : MonoBehaviour
             }
         }
 
-        if (craftingToggle == null)
-        {
-            craftingToggle = root.Q<Button>(CraftingToggleName);
-            if (craftingToggle == null)
-            {
-                craftingToggle = new Button { name = CraftingToggleName, text = "Crafting (C)" };
-                craftingToggle.AddToClassList("inventory-panel-toggle");
-                additionalPanel.Add(craftingToggle);
-            }
-        }
-
         if (additionalContentHost == null)
         {
             additionalContentHost = root.Q<VisualElement>(AdditionalContentName);
@@ -408,16 +430,50 @@ public class VoxelInventoryUI : MonoBehaviour
             }
         }
 
-        if (craftingRecipeListHost == null)
+        if (craftingUnavailableToggle == null)
         {
-            craftingRecipeListHost = root.Q<VisualElement>(CraftingRecipeListName);
-            if (craftingRecipeListHost == null)
+            craftingUnavailableToggle = root.Q<Toggle>(CraftingUnavailableToggleName);
+            if (craftingUnavailableToggle == null)
             {
-                craftingRecipeListHost = new VisualElement { name = CraftingRecipeListName };
-                craftingRecipeListHost.AddToClassList("crafting-recipe-list");
-                craftingContentHost.Add(craftingRecipeListHost);
+                craftingUnavailableToggle = new Toggle("Show Unavailable") { name = CraftingUnavailableToggleName };
+                craftingUnavailableToggle.AddToClassList("crafting-unavailable-toggle");
+                craftingContentHost.Q<VisualElement>("crafting-toolbar")?.Add(craftingUnavailableToggle);
             }
         }
+        if (itemTooltip == null)
+        {
+            itemTooltip = root.Q<VisualElement>(TooltipName);
+            if (itemTooltip == null)
+            {
+                itemTooltip = new VisualElement { name = TooltipName };
+                itemTooltip.AddToClassList(TooltipClass);
+                root.Add(itemTooltip);
+            }
+        }
+
+        if (tooltipItemName == null)
+        {
+            tooltipItemName = itemTooltip.Q<Label>(TooltipItemName);
+            if (tooltipItemName == null)
+            {
+                tooltipItemName = new Label { name = TooltipItemName };
+                itemTooltip.Add(tooltipItemName);
+            }
+            tooltipItemName.AddToClassList(TooltipNameClass);
+        }
+
+        if (tooltipKind == null)
+        {
+            tooltipKind = itemTooltip.Q<Label>(TooltipKindName);
+            if (tooltipKind == null)
+            {
+                tooltipKind = new Label { name = TooltipKindName };
+                itemTooltip.Add(tooltipKind);
+            }
+            tooltipKind.AddToClassList(TooltipKindClass);
+        }
+
+        itemTooltip.pickingMode = PickingMode.Ignore;
     }
 
     private void RegisterCallbacks()
@@ -425,23 +481,18 @@ public class VoxelInventoryUI : MonoBehaviour
         if (registeredRoot == root)
             return;
 
-        if (craftingToggle != null)
-        {
-            craftingToggle.RegisterCallback<PointerDownEvent>(evt =>
-            {
-                if (evt.button != 0)
-                    return;
-
-                ToggleCrafting();
-                evt.StopPropagation();
-            });
-        }
         if (craftingReturnButton != null)
             craftingReturnButton.clicked += ShowInventoryPanel;
         if (craftingInventoryStationButton != null)
             craftingInventoryStationButton.clicked += SelectInventoryStation;
         if (craftingWorkbenchStationButton != null)
             craftingWorkbenchStationButton.clicked += SelectWorkbenchStation;
+        if (craftingUnavailableToggle != null)
+            craftingUnavailableToggle.RegisterValueChangedCallback(evt =>
+            {
+                showUnavailableRecipes = evt.newValue;
+                RefreshCraftingView();
+            });
 
         registeredRoot = root;
     }
@@ -529,9 +580,19 @@ public class VoxelInventoryUI : MonoBehaviour
                     if (evt.button != 0)
                         return;
 
+                    BeginDrag(true, capturedIndex, evt.pointerId);
                     SelectHotbarSlot(capturedIndex);
                     evt.StopPropagation();
                 });
+                button.RegisterCallback<PointerUpEvent>(evt =>
+                {
+                    if (evt.button != 0)
+                        return;
+
+                    CompleteDragAtPosition(evt.position, evt.pointerId, evt.shiftKey);
+                    evt.StopPropagation();
+                });
+                RegisterTooltipCallbacks(button, true, capturedIndex);
                 registeredHotbarButtons.Add(button);
             }
 
@@ -581,7 +642,7 @@ public class VoxelInventoryUI : MonoBehaviour
             return;
 
         additionalContentHost.Clear();
-        selectedAdditionalSlotIndex = -1;
+        HideItemTooltip();
         if (inventory == null || !inventory.IsInitialized)
             return;
 
@@ -595,12 +656,113 @@ public class VoxelInventoryUI : MonoBehaviour
                 if (evt.button != 0)
                     return;
 
-                selectedAdditionalSlotIndex = capturedIndex;
-                RefreshAdditionalSlotStates();
+                BeginDrag(false, capturedIndex, evt.pointerId);
                 evt.StopPropagation();
             });
+            button.RegisterCallback<PointerUpEvent>(evt =>
+            {
+                if (evt.button != 0)
+                    return;
+
+                CompleteDragAtPosition(evt.position, evt.pointerId, evt.shiftKey);
+                evt.StopPropagation();
+            });
+            RegisterTooltipCallbacks(button, false, capturedIndex);
             additionalContentHost.Add(button);
             RefreshAdditionalSlot(button, slot, index);
+        }
+    }
+
+    private void RegisterTooltipCallbacks(Button button, bool hotbar, int index)
+    {
+        button.RegisterCallback<PointerEnterEvent>(evt =>
+        {
+            hoveredTooltipSlot = button;
+            hoveredTooltipHotbar = hotbar;
+            hoveredTooltipIndex = index;
+            hoveredTooltipPosition = evt.position;
+            UpdateItemTooltip();
+        });
+        button.RegisterCallback<PointerMoveEvent>(evt =>
+        {
+            if (hoveredTooltipSlot != button)
+                return;
+
+            hoveredTooltipPosition = evt.position;
+            UpdateItemTooltip();
+        });
+        button.RegisterCallback<PointerLeaveEvent>(evt =>
+        {
+            if (hoveredTooltipSlot == button)
+                HideItemTooltip();
+        });
+    }
+
+    private void UpdateTooltipState()
+    {
+        if (!additionalInventoryVisible && !hoveredTooltipHotbar)
+        {
+            HideItemTooltip();
+            return;
+        }
+
+        if (additionalInventoryVisible)
+            EnsureCursorForOpenInventory();
+        UpdateItemTooltip();
+    }
+
+    private void EnsureCursorForOpenInventory()
+    {
+        if (UnityEngine.Cursor.lockState != CursorLockMode.None)
+            UnityEngine.Cursor.lockState = CursorLockMode.None;
+        if (!UnityEngine.Cursor.visible)
+            UnityEngine.Cursor.visible = true;
+    }
+
+    private void UpdateItemTooltip()
+    {
+        if (itemTooltip == null || hoveredTooltipSlot == null || !additionalInventoryVisible && !hoveredTooltipHotbar)
+        {
+            HideItemTooltip();
+            return;
+        }
+
+        if (!IsShiftHeld())
+        {
+            HideItemTooltip(false);
+            return;
+        }
+
+        InventorySlotData slot = hoveredTooltipHotbar
+            ? inventory == null ? null : inventory.GetHotbarSlot(hoveredTooltipIndex)
+            : inventory == null || hoveredTooltipIndex >= inventory.AdditionalSlots.Count ? null : inventory.AdditionalSlots[hoveredTooltipIndex];
+        if (slot == null || slot.IsEmpty)
+        {
+            HideItemTooltip();
+            return;
+        }
+
+        tooltipItemName.text = slot.DisplayName;
+        tooltipKind.text = $"Kind: {slot.ItemKind}";
+        itemTooltip.style.left = hoveredTooltipPosition.x - root.worldBound.x + 14f;
+        itemTooltip.style.top = hoveredTooltipPosition.y - root.worldBound.y + 14f;
+        itemTooltip.style.display = DisplayStyle.Flex;
+    }
+
+    private static bool IsShiftHeld()
+    {
+        Keyboard keyboard = Keyboard.current;
+        return keyboard != null && (keyboard.leftShiftKey.isPressed || keyboard.rightShiftKey.isPressed);
+    }
+
+    private void HideItemTooltip(bool clearHover = true)
+    {
+        if (itemTooltip != null)
+            itemTooltip.style.display = DisplayStyle.None;
+        if (clearHover)
+        {
+            hoveredTooltipSlot = null;
+            hoveredTooltipIndex = -1;
         }
     }
 
@@ -617,10 +779,20 @@ public class VoxelInventoryUI : MonoBehaviour
         if (craftingWorkbenchStationButton != null)
             craftingWorkbenchStationButton.SetEnabled(craftingSystem.HasWorkbenchAccess);
 
+        if (craftingUnavailableToggle != null)
+        {
+            craftingUnavailableToggle.SetValueWithoutNotify(showUnavailableRecipes);
+        }
+
         craftingRecipeListHost.Clear();
-        IReadOnlyList<CraftingRecipe> recipes = craftingSystem.Recipes;
+        List<CraftingRecipe> recipes = new List<CraftingRecipe>(craftingSystem.Recipes);
         for (int i = 0; i < recipes.Count; i++)
+        {
+            if (!craftingSystem.ShouldShowRecipe(recipes[i].RecipeId, showUnavailableRecipes))
+                continue;
+
             craftingRecipeListHost.Add(CreateRecipeCard(recipes[i]));
+        }
     }
 
     private VisualElement CreateRecipeCard(CraftingRecipe recipe)
@@ -657,7 +829,7 @@ public class VoxelInventoryUI : MonoBehaviour
 
         Button craftButton = new Button { text = "Craft" };
         craftButton.AddToClassList("crafting-recipe-button");
-        craftButton.SetEnabled(craftingSystem != null && inventory != null && inventory.IsInitialized && recipe.IsValid());
+        craftButton.SetEnabled(canCraft);
         string capturedRecipeId = recipe.RecipeId;
         craftButton.clicked += () => CraftRecipe(capturedRecipeId);
         card.Add(craftButton);
@@ -673,6 +845,84 @@ public class VoxelInventoryUI : MonoBehaviour
     private void SelectWorkbenchStation()
     {
         SelectCraftingStation(CraftingStationType.Workbench);
+    }
+
+    private void BeginDrag(bool sourceHotbar, int sourceIndex, int pointerId)
+    {
+        if (inventory == null || !inventory.IsInitialized)
+            return;
+
+        InventorySlotData source = sourceHotbar
+            ? inventory.GetHotbarSlot(sourceIndex)
+            : sourceIndex < inventory.AdditionalSlots.Count ? inventory.AdditionalSlots[sourceIndex] : null;
+        if (source == null || source.IsEmpty)
+            return;
+
+        dragSourceActive = true;
+        dragSourceHotbar = sourceHotbar;
+        dragSourceIndex = sourceIndex;
+        dragPointerId = pointerId;
+    }
+
+    private void CompleteDragAtPosition(Vector2 pointerPosition, int pointerId, bool shiftHeld)
+    {
+        if (!dragSourceActive || dragPointerId != pointerId)
+            return;
+
+        bool targetHotbar;
+        int targetIndex;
+        if (!TryGetSlotAtPosition(pointerPosition, out targetHotbar, out targetIndex))
+        {
+            dragSourceActive = false;
+            return;
+        }
+
+        bool sameSlot = dragSourceHotbar == targetHotbar && dragSourceIndex == targetIndex;
+        bool moved = false;
+        if (!sameSlot)
+            moved = inventory != null && inventory.TryMoveItem(dragSourceHotbar, dragSourceIndex, targetHotbar, targetIndex);
+        else if (!targetHotbar && inventory != null)
+            moved = inventory.TryTakeAdditionalItemToHotbar(targetIndex, shiftHeld);
+
+        dragSourceActive = false;
+        if (moved)
+        {
+            selectedAdditionalSlotIndex = -1;
+            Refresh();
+        }
+    }
+
+    private bool TryGetSlotAtPosition(Vector2 pointerPosition, out bool hotbar, out int index)
+    {
+        if (hotbarSlotsHost != null)
+        {
+            for (int i = 0; i < hotbarSlotsHost.childCount; i++)
+            {
+                if (hotbarSlotsHost[i].worldBound.Contains(pointerPosition))
+                {
+                    hotbar = true;
+                    index = i;
+                    return true;
+                }
+            }
+        }
+
+        if (additionalContentHost != null)
+        {
+            for (int i = 0; i < additionalContentHost.childCount; i++)
+            {
+                if (additionalContentHost[i].worldBound.Contains(pointerPosition))
+                {
+                    hotbar = false;
+                    index = i;
+                    return true;
+                }
+            }
+        }
+
+        hotbar = false;
+        index = -1;
+        return false;
     }
 
     private void RefreshHotbarSlot(Button button, int index)
@@ -771,11 +1021,8 @@ public class VoxelInventoryUI : MonoBehaviour
 
     private void RestoreCursorState()
     {
-        if (!cursorStateCaptured)
-            return;
-
-        UnityEngine.Cursor.lockState = previousCursorLockState;
-        UnityEngine.Cursor.visible = previousCursorVisible;
+        UnityEngine.Cursor.lockState = CursorLockMode.None;
+        UnityEngine.Cursor.visible = true;
         cursorStateCaptured = false;
     }
 

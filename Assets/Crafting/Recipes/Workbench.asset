@@ -18,7 +18,7 @@ MonoBehaviour:
   outputDisplayName: Workbench
   outputAmount: 1
   outputIcon: {fileID: 0}
-  requiredStation: 1
+  recipeType: 1
   ingredientItemIds:
   - Wood
   ingredientAmounts: 04000000i

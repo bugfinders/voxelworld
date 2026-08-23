@@ -8,7 +8,8 @@ using UnityEngine.SceneManagement;
 public sealed class WorldSaveManager : MonoBehaviour
 {
     private const int SaveMagic = 0x43554245;
-    private const int SaveVersion = 3;
+    private const int SaveVersion = 4;
+    private const int MaxHarvestedItemCount = 10000;
     private const string SaveFileName = "cubeits_world.save";
 
     private static bool loadRequested;
@@ -126,7 +127,11 @@ public sealed class WorldSaveManager : MonoBehaviour
             using (System.IO.FileStream stream = new System.IO.FileStream(SavePath, System.IO.FileMode.Open, System.IO.FileAccess.Read, System.IO.FileShare.Read))
             using (BinaryReader reader = new BinaryReader(stream))
             {
-                if (reader.ReadInt32() != SaveMagic || reader.ReadInt32() != SaveVersion)
+                if (reader.ReadInt32() != SaveMagic)
+                    throw new InvalidDataException("Invalid save file.");
+
+                int savedVersion = reader.ReadInt32();
+                if (savedVersion != 3 && savedVersion != SaveVersion)
                     throw new InvalidDataException("Unsupported save version.");
 
                 int width = reader.ReadInt32();
@@ -149,7 +154,7 @@ public sealed class WorldSaveManager : MonoBehaviour
                     playerCamera.transform.localPosition = ReadVector3(reader);
                     playerCamera.transform.localEulerAngles = ReadVector3(reader);
                 }
-                ReadInventory(reader, terrain.Inventory);
+                ReadInventory(reader, terrain.Inventory, savedVersion >= SaveVersion);
                 VoxelPlayerController playerController = player.GetComponent<VoxelPlayerController>();
                 if (playerController != null)
                     playerController.SyncLookToTransforms();
@@ -177,9 +182,13 @@ public sealed class WorldSaveManager : MonoBehaviour
             WriteSlot(writer, additionalSlots[i]);
 
         writer.Write(inventory.SelectedSlotIndex);
+        IReadOnlyCollection<string> harvestedItemIds = inventory.HarvestedItemIds;
+        writer.Write(harvestedItemIds.Count);
+        foreach (string itemId in harvestedItemIds)
+            writer.Write(itemId ?? string.Empty);
     }
 
-    private static void ReadInventory(BinaryReader reader, VoxelInventory inventory)
+    private static void ReadInventory(BinaryReader reader, VoxelInventory inventory, bool includesHarvestHistory)
     {
         int hotbarCount = reader.ReadInt32();
         if (hotbarCount != VoxelInventory.HotbarSlotCount)
@@ -198,6 +207,17 @@ public sealed class WorldSaveManager : MonoBehaviour
             additional.Add(ReadSlot(reader));
 
         inventory.RestoreState(hotbar, additional, reader.ReadInt32());
+        if (!includesHarvestHistory)
+            return;
+
+        int harvestedCount = reader.ReadInt32();
+        if (harvestedCount < 0 || harvestedCount > MaxHarvestedItemCount)
+            throw new InvalidDataException("Save contains an invalid harvested-item count.");
+
+        List<string> harvestedItemIds = new List<string>(harvestedCount);
+        for (int i = 0; i < harvestedCount; i++)
+            harvestedItemIds.Add(reader.ReadString());
+        inventory.RestoreHarvestedItemIds(harvestedItemIds);
     }
 
     private static void WriteSlot(BinaryWriter writer, InventorySlotData slot)

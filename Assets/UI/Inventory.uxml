@@ -38,7 +38,6 @@
         <ui:VisualElement name="inventory-additional-panel" class="inventory-additional-panel">
             <ui:VisualElement name="inventory-panel-header" class="inventory-panel-header">
                 <ui:Label name="inventory-panel-title" text="Inventory" class="inventory-panel-title" />
-                <ui:Button name="inventory-crafting-toggle" text="Crafting (C)" class="inventory-panel-toggle" />
             </ui:VisualElement>
             <ui:ScrollView name="inventory-additional-scroll" class="inventory-additional-scroll">
                 <ui:VisualElement name="inventory-additional-content" class="inventory-additional-content" />
@@ -46,6 +45,7 @@
             <ui:VisualElement name="crafting-content" class="crafting-content">
                 <ui:VisualElement name="crafting-toolbar" class="crafting-toolbar">
                     <ui:Button name="crafting-inventory-return" text="Inventory" class="crafting-return-button" />
+                    <ui:Toggle name="crafting-unavailable-toggle" label="Show Unavailable" class="crafting-unavailable-toggle" />
                     <ui:VisualElement name="crafting-station-selector" class="crafting-station-selector">
                         <ui:Button name="crafting-station-inventory" text="Hand Crafting" class="crafting-station-button" />
                         <ui:Button name="crafting-station-workbench" text="Workbench" class="crafting-station-button" />
@@ -55,6 +55,10 @@
                     <ui:VisualElement name="crafting-recipe-list" class="crafting-recipe-list" />
                 </ui:ScrollView>
             </ui:VisualElement>
+        </ui:VisualElement>
+        <ui:VisualElement name="inventory-item-tooltip" class="inventory-item-tooltip">
+            <ui:Label name="inventory-tooltip-item-name" class="inventory-item-tooltip__name" />
+            <ui:Label name="inventory-tooltip-kind" class="inventory-item-tooltip__kind" />
         </ui:VisualElement>
     </ui:VisualElement>
 </ui:UXML>

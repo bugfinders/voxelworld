@@ -237,6 +237,12 @@ public class VoxelPlayerController : MonoBehaviour
 
     void RotateCamera()
     {
+        if (VoxelInventoryUI.IsAnyWindowVisible)
+        {
+            lookInput = Vector2.zero;
+            return;
+        }
+
         float yawDelta = lookInput.x * mouseSensitivity;
         float pitchDelta = lookInput.y * mouseSensitivity;
 

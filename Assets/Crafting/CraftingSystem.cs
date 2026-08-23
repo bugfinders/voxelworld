@@ -12,6 +12,7 @@ public class CraftingSystem : MonoBehaviour
 
     private VoxelInventory inventory;
     private CraftingStationType activeStation = CraftingStationType.Inventory;
+    private PlaceableItemAsset stationInUseItem;
     private bool stationInUse;
     private bool hasWorkbenchAccess;
     private bool catalogInitialized;
@@ -53,8 +54,9 @@ public class CraftingSystem : MonoBehaviour
             return;
 
         stationInUse = true;
+        stationInUseItem = stationItem;
+        activeStation = stationItem.CraftingStation;
         RefreshState();
-        SetStation(stationItem.CraftingStation);
     }
 
     /// <summary>
@@ -62,8 +64,9 @@ public class CraftingSystem : MonoBehaviour
     /// </summary>
     public void EndStationUse()
     {
-        bool stationChanged = activeStation != CraftingStationType.Inventory;
+        bool stationChanged = activeStation != CraftingStationType.Inventory || stationInUseItem != null;
         stationInUse = false;
+        stationInUseItem = null;
         if (stationChanged)
         {
             activeStation = CraftingStationType.Inventory;
@@ -80,7 +83,9 @@ public class CraftingSystem : MonoBehaviour
     /// </summary>
     public void SetStation(CraftingStationType station)
     {
-        if (station != CraftingStationType.Inventory && station != CraftingStationType.Workbench)
+        if (station != CraftingStationType.Inventory && !stationInUse)
+            return;
+        if (station != CraftingStationType.Inventory && (stationInUseItem == null || stationInUseItem.CraftingStation != station))
             return;
         if (station == CraftingStationType.Workbench && !hasWorkbenchAccess)
             return;
@@ -99,17 +104,8 @@ public class CraftingSystem : MonoBehaviour
     {
         RefreshStateInternal();
         CraftingRecipe recipe = FindActiveRecipe(recipeId);
-        if (recipe == null || inventory == null || !inventory.IsInitialized || !recipe.IsValid())
+        if (recipe == null || inventory == null || !inventory.IsInitialized || !recipe.IsValid() || !IsRecipeTypeAllowed(recipe.RecipeType))
             return false;
-        if (recipe.RequiredStation == CraftingStationType.Workbench && !hasWorkbenchAccess)
-            return false;
-        if (recipe.RequiredStation == CraftingStationType.Inventory && activeStation == CraftingStationType.Inventory)
-        {
-            return CanCraftWithInventory(recipe);
-        }
-        if (activeStation != CraftingStationType.Workbench || !stationInUse)
-            return false;
-
         return CanCraftWithInventory(recipe);
     }
 
@@ -126,7 +122,44 @@ public class CraftingSystem : MonoBehaviour
     }
 
     /// <summary>
-    /// Attempts one atomic craft using the active crafting station.
+    /// Returns whether a recipe should be displayed to the player right now.
+    /// </summary>
+    public bool ShouldShowRecipe(string recipeId)
+    {
+        RefreshStateInternal();
+        CraftingRecipe recipe = FindActiveRecipe(recipeId);
+        if (recipe == null || inventory == null || !inventory.IsInitialized || !HasHarvestedAllIngredients(recipe))
+            return false;
+
+        return CanCraft(recipeId);
+    }
+
+    /// <summary>
+    /// Returns whether a recipe should be displayed, optionally including discovered recipes that cannot currently be crafted.
+    /// </summary>
+    public bool ShouldShowRecipe(string recipeId, bool includeUnavailable)
+    {
+        RefreshStateInternal();
+        CraftingRecipe recipe = FindActiveRecipe(recipeId);
+        if (recipe == null || inventory == null || !inventory.IsInitialized || !HasHarvestedAllIngredients(recipe))
+            return false;
+
+        return includeUnavailable || CanCraft(recipeId);
+    }
+    private bool HasHarvestedAllIngredients(CraftingRecipe recipe)
+    {
+        for (int i = 0; i < recipe.Ingredients.Count; i++)
+        {
+            CraftingIngredient ingredient = recipe.Ingredients[i];
+            if (ingredient == null || !inventory.HasEverHarvested(ingredient.ItemId))
+                return false;
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Attempts to craft one atomic craft using the active crafting station.
     /// </summary>
     public bool TryCraft(string recipeId)
     {
@@ -166,13 +199,17 @@ public class CraftingSystem : MonoBehaviour
 
         bool previousAccess = hasWorkbenchAccess;
         CraftingStationType previousStation = activeStation;
+        PlaceableItemAsset previousStationItem = stationInUseItem;
         int previousRecipeCount = activeRecipes.Count;
-        hasWorkbenchAccess = stationInUse;
-        if (!hasWorkbenchAccess && activeStation == CraftingStationType.Workbench)
+        hasWorkbenchAccess = stationInUse && stationInUseItem != null && stationInUseItem.CraftingStation == CraftingStationType.Workbench;
+        if (!stationInUse)
+        {
+            stationInUseItem = null;
             activeStation = CraftingStationType.Inventory;
+        }
 
         RebuildActiveRecipes();
-        return previousAccess != hasWorkbenchAccess || previousStation != activeStation || previousRecipeCount != activeRecipes.Count;
+        return previousAccess != hasWorkbenchAccess || previousStation != activeStation || previousStationItem != stationInUseItem || previousRecipeCount != activeRecipes.Count;
     }
 
     private void InitializeCatalog()
@@ -244,17 +281,31 @@ public class CraftingSystem : MonoBehaviour
     private void RebuildActiveRecipes()
     {
         activeRecipes.Clear();
+        CraftingRecipeType activeRecipeTypes = GetActiveRecipeTypes();
         for (int i = 0; i < allRecipes.Count; i++)
         {
             CraftingRecipe recipe = allRecipes[i];
-            if (recipe == null || !recipe.IsValid())
+            if (recipe == null || !recipe.IsValid() || (recipe.RecipeType & activeRecipeTypes) == CraftingRecipeType.None)
                 continue;
 
-            if (activeStation == CraftingStationType.Inventory && recipe.RequiredStation == CraftingStationType.Inventory)
-                activeRecipes.Add(recipe);
-            else if (activeStation == CraftingStationType.Workbench && stationInUse)
+            if (inventory == null || !inventory.IsInitialized || HasHarvestedAllIngredients(recipe))
                 activeRecipes.Add(recipe);
         }
+    }
+
+    private CraftingRecipeType GetActiveRecipeTypes()
+    {
+        if (stationInUseItem != null)
+            return stationInUseItem.RecipeTypesToShow;
+
+        return activeStation == CraftingStationType.Inventory
+            ? CraftingRecipeType.Basic
+            : CraftingRecipeType.None;
+    }
+
+    private bool IsRecipeTypeAllowed(CraftingRecipeType recipeType)
+    {
+        return (GetActiveRecipeTypes() & recipeType) != CraftingRecipeType.None;
     }
 
     private CraftingRecipe FindActiveRecipe(string recipeId)

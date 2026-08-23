@@ -19,3 +19,4 @@ MonoBehaviour:
   blocksTopPlacement: 1
   opensCraftingMenu: 1
   craftingStation: 1
+  recipeTypesToShow: 3

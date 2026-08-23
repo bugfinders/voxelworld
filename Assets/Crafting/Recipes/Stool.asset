@@ -18,7 +18,7 @@ MonoBehaviour:
   outputDisplayName: Stool
   outputAmount: 1
   outputIcon: {fileID: 0}
-  requiredStation: 0
+  recipeType: 2
   ingredientItemIds:
   - Wood
   ingredientAmounts: 02000000i

@@ -5,7 +5,17 @@ using UnityEngine;
 public enum CraftingStationType
 {
     Inventory,
-    Workbench
+    Workbench,
+    Furnace
+}
+
+[Flags]
+public enum CraftingRecipeType
+{
+    None = 0,
+    Basic = 1,
+    Workstation = 2,
+    Furnace = 4
 }
 
 [Serializable]
@@ -48,22 +58,22 @@ public sealed class CraftingRecipe
     [SerializeField] private string outputDisplayName;
     [SerializeField] private int outputAmount;
     [SerializeField] private Texture2D outputIcon;
-    [SerializeField] private CraftingStationType requiredStation;
+    [SerializeField] private CraftingRecipeType recipeType;
     [SerializeField] private List<CraftingIngredient> ingredients = new List<CraftingIngredient>();
 
-    public CraftingRecipe(string recipeId, string outputItemId, string outputDisplayName, int outputAmount, CraftingStationType requiredStation, params CraftingIngredient[] ingredients)
+    public CraftingRecipe(string recipeId, string outputItemId, string outputDisplayName, int outputAmount, CraftingRecipeType recipeType, params CraftingIngredient[] ingredients)
     {
         this.recipeId = NormalizeItemId(recipeId);
         this.outputItemId = NormalizeItemId(outputItemId);
         this.outputDisplayName = NormalizeDisplayName(outputDisplayName, this.outputItemId);
         this.outputAmount = Mathf.Max(0, outputAmount);
-        this.requiredStation = requiredStation;
+        this.recipeType = recipeType;
         this.ingredients = ingredients == null ? new List<CraftingIngredient>() : new List<CraftingIngredient>(ingredients);
         Normalize();
     }
 
-    public CraftingRecipe(string recipeId, string outputItemId, string outputDisplayName, int outputAmount, CraftingStationType requiredStation, Texture2D outputIcon, params CraftingIngredient[] ingredients)
-        : this(recipeId, outputItemId, outputDisplayName, outputAmount, requiredStation, ingredients)
+    public CraftingRecipe(string recipeId, string outputItemId, string outputDisplayName, int outputAmount, CraftingRecipeType recipeType, Texture2D outputIcon, params CraftingIngredient[] ingredients)
+        : this(recipeId, outputItemId, outputDisplayName, outputAmount, recipeType, ingredients)
     {
         this.outputIcon = outputIcon;
     }
@@ -73,7 +83,7 @@ public sealed class CraftingRecipe
     public string OutputDisplayName => outputDisplayName;
     public int OutputAmount => outputAmount;
     public Texture2D OutputIcon => outputIcon;
-    public CraftingStationType RequiredStation => requiredStation;
+    public CraftingRecipeType RecipeType => recipeType;
     public IReadOnlyList<CraftingIngredient> Ingredients => ingredients;
 
     public int TotalIngredientCount
@@ -101,7 +111,7 @@ public sealed class CraftingRecipe
 
     public bool IsValid()
     {
-        if (string.IsNullOrEmpty(recipeId) || string.IsNullOrEmpty(outputItemId) || outputAmount <= 0 || (requiredStation != CraftingStationType.Inventory && requiredStation != CraftingStationType.Workbench) || ingredients == null || ingredients.Count == 0)
+        if (string.IsNullOrEmpty(recipeId) || string.IsNullOrEmpty(outputItemId) || outputAmount <= 0 || (recipeType != CraftingRecipeType.Basic && recipeType != CraftingRecipeType.Workstation && recipeType != CraftingRecipeType.Furnace) || ingredients == null || ingredients.Count == 0)
             return false;
 
         HashSet<string> ingredientIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -112,7 +122,7 @@ public sealed class CraftingRecipe
                 return false;
         }
 
-        int maximumIngredientCount = requiredStation == CraftingStationType.Inventory ? 4 : 9;
+        int maximumIngredientCount = recipeType == CraftingRecipeType.Basic ? 4 : 9;
         return TotalIngredientCount <= maximumIngredientCount;
     }
 

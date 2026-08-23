@@ -18,7 +18,7 @@ MonoBehaviour:
   outputDisplayName: Stone Brick
   outputAmount: 2
   outputIcon: {fileID: 2800000, guid: 23b1add10d783de4ca8694f9721ec24a, type: 3}
-  requiredStation: 1
+  recipeType: 2
   ingredientItemIds:
   - Stone
   ingredientAmounts: 01000000i
