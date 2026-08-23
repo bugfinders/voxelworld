@@ -1,0 +1,76 @@
+:root {
+    --menu-card: rgba(18, 24, 34, 0.96);
+    --menu-text: rgb(244, 247, 250);
+    --menu-muted: rgb(185, 195, 210);
+    --menu-accent: rgb(255, 204, 72);
+}
+
+.game-root {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(4, 7, 12, 0.62);
+}
+
+.game-menu-panel {
+    width: 370px;
+    padding: 28px;
+    align-items: stretch;
+    background-color: var(--menu-card);
+}
+
+.game-title,
+.settings-title {
+    align-self: center;
+    color: var(--menu-text);
+    font-size: 30px;
+    margin-bottom: 18px;
+    -unity-font-style: bold;
+}
+
+.menu-button {
+    min-height: 40px;
+    margin-top: 4px;
+    margin-bottom: 4px;
+    color: var(--menu-text);
+    background-color: rgba(63, 76, 96, 0.9);
+    border-left-width: 0;
+    border-right-width: 0;
+    border-top-width: 0;
+    border-bottom-width: 0;
+}
+
+.menu-button:hover {
+    background-color: rgb(83, 98, 122);
+}
+
+.menu-button--primary {
+    color: rgb(20, 23, 28);
+    background-color: var(--menu-accent);
+    -unity-font-style: bold;
+}
+
+.game-status,
+.settings-label {
+    color: var(--menu-muted);
+    margin-top: 10px;
+    -unity-text-align: middle-center;
+}
+
+.game-settings-panel {
+    display: none;
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top-width: 1px;
+    border-top-color: rgba(255, 255, 255, 0.15);
+}
+
+.game-settings-panel Slider,
+.game-settings-panel Toggle {
+    margin-top: 5px;
+    margin-bottom: 5px;
+}

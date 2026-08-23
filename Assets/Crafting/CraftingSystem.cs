@@ -97,6 +97,7 @@ public class CraftingSystem : MonoBehaviour
     /// </summary>
     public bool CanCraft(string recipeId)
     {
+        RefreshStateInternal();
         CraftingRecipe recipe = FindActiveRecipe(recipeId);
         if (recipe == null || inventory == null || !inventory.IsInitialized || !recipe.IsValid())
             return false;
@@ -120,11 +121,23 @@ public class CraftingSystem : MonoBehaviour
     /// </summary>
     public bool TryCraft(string recipeId)
     {
+        RefreshStateInternal();
         CraftingRecipe recipe = FindActiveRecipe(recipeId);
-        if (recipe == null || !CanCraft(recipeId))
+        if (recipe == null)
+        {
+            Debug.LogWarning($"Craft failed: recipe '{recipeId}' is not active for station {activeStation}.");
             return false;
+        }
+        if (!CanCraft(recipeId))
+        {
+            Debug.LogWarning($"Craft failed: recipe '{recipeId}' is not currently craftable.");
+            return false;
+        }
 
-        return inventory.TryCraft(recipe);
+        bool crafted = inventory.TryCraft(recipe);
+        if (!crafted)
+            Debug.LogWarning($"Craft failed: inventory transaction rejected recipe '{recipeId}'.");
+        return crafted;
     }
 
     /// <summary>
@@ -238,7 +251,7 @@ public class CraftingSystem : MonoBehaviour
         string normalizedId = recipeId.Trim();
         for (int i = 0; i < activeRecipes.Count; i++)
         {
-            if (string.Equals(activeRecipes[i].RecipeId, normalizedId, StringComparison.Ordinal))
+            if (string.Equals(activeRecipes[i].RecipeId, normalizedId, StringComparison.OrdinalIgnoreCase))
                 return activeRecipes[i];
         }
 

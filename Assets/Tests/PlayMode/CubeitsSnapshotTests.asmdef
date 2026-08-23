@@ -1,0 +1,6 @@
+{
+    "name": "CubeitsSnapshotTests",
+    "optionalUnityReferences": [
+        "TestAssemblies"
+    ]
+}

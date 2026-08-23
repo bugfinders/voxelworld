@@ -129,11 +129,13 @@
 .inventory-additional-panel {
     display: none;
     position: absolute;
-    width: 430px;
-    align-self: center;
-    bottom: 116px;
-    max-height: 360px;
-    padding: 10px;
+    top: 70px;
+    bottom: 150px;
+    width: 720px;
+    height: auto;
+    min-height: 0;
+    max-height: none;
+    flex-direction: column;
     background-color: var(--inventory-panel-background);
     border-top-left-radius: 8px;
     border-top-right-radius: 8px;
@@ -181,7 +183,11 @@
 .crafting-content {
     display: none;
     flex-grow: 1;
-    min-height: 70px;
+    flex-shrink: 1;
+    flex-basis: auto;
+    min-height: 0;
+    height: auto;
+    overflow: hidden;
 }
 
 .crafting-content--visible {
@@ -190,6 +196,7 @@
 
 .crafting-toolbar {
     flex-direction: row;
+    flex-shrink: 0;
     align-items: center;
     justify-content: space-between;
     margin-bottom: 8px;
@@ -226,16 +233,22 @@
 
 .crafting-recipe-scroll {
     flex-grow: 1;
-    min-height: 60px;
+    flex-shrink: 1;
+    flex-basis: auto;
+    min-height: 0;
+    height: auto;
+    overflow: hidden;
 }
 
 .crafting-recipe-list {
     width: 100%;
+    flex-shrink: 0;
     padding-right: 4px;
 }
 
 .crafting-recipe-card {
     flex-direction: column;
+    flex-shrink: 0;
     margin-bottom: 6px;
     padding: 8px;
     background-color: rgba(31, 39, 53, 0.96);

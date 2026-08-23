@@ -1,3 +1,6 @@
+using System;
+using System.Collections;
+using System.IO;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -11,7 +14,9 @@ public class ChunkedVoxelTerrain : MonoBehaviour
     public Transform player;
     public Camera cam;
 
+    private int worldSeed;
     private float[] generationMaterialWeights;
+
 
     private GameObject hoverCube;
     private LineRenderer[] hoverEdgeLines;
@@ -48,9 +53,14 @@ public class ChunkedVoxelTerrain : MonoBehaviour
     private bool hasPlacementTarget;
 
     public VoxelInventory Inventory => inventory;
+    public int WorldSeed => worldSeed;
+    public bool IsInitialized => solid != null && voxelMaterials != null && chunks != null;
 
     private void Awake()
     {
+        worldSeed = WorldSaveManager.HasPendingWorldSeed
+            ? WorldSaveManager.PendingWorldSeed
+            : generationProfile == null ? 0 : generationProfile.Seed;
         if (!ValidateMaterials())
             return;
 
@@ -60,14 +70,14 @@ public class ChunkedVoxelTerrain : MonoBehaviour
         inventory.Initialize(materials, placeableItems);
     }
 
-    private void Start()
+    private IEnumerator Start()
     {
         control = player.gameObject.GetComponent<VoxelPlayerController>();
         if (control == null)
             Debug.LogError("Player has no VoxelPlayerController.");
 
         if (!inventory || !inventory.IsInitialized)
-            return;
+            yield break;
 
         if (control != null)
             control.enabled = false;
@@ -76,10 +86,15 @@ public class ChunkedVoxelTerrain : MonoBehaviour
         GenerateSolidGrid();
         CreateChunks();
         BuildAllChunks();
+        Physics.SyncTransforms();
+        yield return new WaitForFixedUpdate();
         MovePlayerToTopSurface();
+        Physics.SyncTransforms();
 
         if (control != null)
             control.enabled = true;
+
+        Debug.Log("Voxel terrain initialized.");
     }
 
     private bool ValidateMaterials()
@@ -270,8 +285,8 @@ public class ChunkedVoxelTerrain : MonoBehaviour
         float amplitude = 1f;
         float value = 0f;
         float amplitudeTotal = 0f;
-        float offsetX = GetSeedOffset(generationProfile.Seed, 701);
-        float offsetZ = GetSeedOffset(generationProfile.Seed, 907);
+        float offsetX = GetSeedOffset(worldSeed, 701);
+        float offsetZ = GetSeedOffset(worldSeed, 907);
 
         for (int octave = 0; octave < generationProfile.HeightOctaves; octave++)
         {
@@ -398,7 +413,7 @@ public class ChunkedVoxelTerrain : MonoBehaviour
 
     private uint GetSeededHash(int x, int y, int z, int salt)
     {
-        int seed = generationProfile == null ? 0 : generationProfile.Seed;
+        int seed = worldSeed;
         unchecked
         {
             uint hash = (uint)x * 92837111u;
@@ -532,8 +547,13 @@ public class ChunkedVoxelTerrain : MonoBehaviour
     }
 
     /// <summary>
-    /// Returns whether a voxel coordinate currently contains a block.
+    /// Sets the seed associated with the current world for save/load consistency.
     /// </summary>
+    public void SetWorldSeed(int seed)
+    {
+        worldSeed = seed;
+    }
+
     public bool IsSolid(int x, int y, int z)
     {
         if (solid == null)
@@ -750,6 +770,66 @@ public class ChunkedVoxelTerrain : MonoBehaviour
     }
 
 
+
+    /// <summary>
+    /// Writes the current voxel grid in x/y/z order using zero for empty cells and material index plus one for solid cells.
+    /// </summary>
+    public void WriteVoxelState(BinaryWriter writer)
+    {
+        if (!IsInitialized)
+            throw new InvalidOperationException("Voxel terrain is not initialized.");
+        if (materials == null || materials.Length > byte.MaxValue)
+            throw new InvalidDataException("The material count cannot be represented by the save format.");
+
+        for (int x = 0; x < SIZE_X; x++)
+        for (int y = 0; y <= MAX_HEIGHT; y++)
+        for (int z = 0; z < SIZE_Z; z++)
+        {
+            if (!solid[x, y, z])
+            {
+                writer.Write((byte)0);
+                continue;
+            }
+
+            int materialIndex = voxelMaterials[x, y, z];
+            if (materialIndex < 0 || materialIndex >= materials.Length || materialIndex >= byte.MaxValue)
+                throw new InvalidDataException("The voxel grid contains an invalid material index.");
+            writer.Write((byte)(materialIndex + 1));
+        }
+    }
+
+    /// <summary>
+    /// Reads and applies a complete voxel grid, then rebuilds every chunk mesh.
+    /// </summary>
+    public bool ReadVoxelState(BinaryReader reader, int width, int height, int depth)
+    {
+        if (!IsInitialized || width != SIZE_X || height != MAX_HEIGHT + 1 || depth != SIZE_Z || materials == null || materials.Length > byte.MaxValue)
+            return false;
+
+        int voxelCount = width * height * depth;
+        byte[] encodedState = reader.ReadBytes(voxelCount);
+        if (encodedState.Length != voxelCount)
+            return false;
+
+        for (int i = 0; i < encodedState.Length; i++)
+        {
+            if (encodedState[i] > materials.Length)
+                return false;
+        }
+
+        int offset = 0;
+        for (int x = 0; x < SIZE_X; x++)
+        for (int y = 0; y <= MAX_HEIGHT; y++)
+        for (int z = 0; z < SIZE_Z; z++)
+        {
+            byte encodedMaterial = encodedState[offset++];
+            solid[x, y, z] = encodedMaterial != 0;
+            voxelMaterials[x, y, z] = encodedMaterial == 0 ? 0 : encodedMaterial - 1;
+        }
+
+        BuildAllChunks();
+        return true;
+    }
 
     private void RebuildChunk(int chunkX, int chunkZ)
     {

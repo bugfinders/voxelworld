@@ -51,7 +51,7 @@
                         <ui:Button name="crafting-station-workbench" text="Workbench" class="crafting-station-button" />
                     </ui:VisualElement>
                 </ui:VisualElement>
-                <ui:ScrollView name="crafting-recipe-scroll" class="crafting-recipe-scroll">
+                <ui:ScrollView name="crafting-recipe-scroll" mode="Vertical" vertical-scrolling-visibility="Auto" horizontal-scrolling-visibility="Hidden" class="crafting-recipe-scroll">
                     <ui:VisualElement name="crafting-recipe-list" class="crafting-recipe-list" />
                 </ui:ScrollView>
             </ui:VisualElement>

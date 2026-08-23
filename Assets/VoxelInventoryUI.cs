@@ -30,6 +30,7 @@ public class VoxelInventoryUI : MonoBehaviour
     private const string PanelTitleName = "inventory-panel-title";
     private const string CraftingToggleName = "inventory-crafting-toggle";
     private const string AdditionalContentName = "inventory-additional-content";
+    private const string AdditionalScrollName = "inventory-additional-scroll";
     private const string CraftingContentName = "crafting-content";
     private const string CraftingReturnName = "crafting-inventory-return";
     private const string CraftingInventoryStationName = "crafting-station-inventory";
@@ -46,6 +47,7 @@ public class VoxelInventoryUI : MonoBehaviour
     private Label panelTitle;
     private Button craftingToggle;
     private VisualElement additionalContentHost;
+    private VisualElement additionalScroll;
     private VisualElement craftingContentHost;
     private Button craftingReturnButton;
     private Button craftingInventoryStationButton;
@@ -270,6 +272,8 @@ public class VoxelInventoryUI : MonoBehaviour
             panelTitle = root.Q<Label>(PanelTitleName);
             craftingToggle = root.Q<Button>(CraftingToggleName);
             additionalContentHost = root.Q<VisualElement>(AdditionalContentName);
+            additionalScroll = root.Q<VisualElement>(AdditionalScrollName);
+
             craftingContentHost = root.Q<VisualElement>(CraftingContentName);
             craftingReturnButton = root.Q<Button>(CraftingReturnName);
             craftingInventoryStationButton = root.Q<Button>(CraftingInventoryStationName);
@@ -653,7 +657,7 @@ public class VoxelInventoryUI : MonoBehaviour
 
         Button craftButton = new Button { text = "Craft" };
         craftButton.AddToClassList("crafting-recipe-button");
-        craftButton.SetEnabled(canCraft);
+        craftButton.SetEnabled(craftingSystem != null && inventory != null && inventory.IsInitialized && recipe.IsValid());
         string capturedRecipeId = recipe.RecipeId;
         craftButton.clicked += () => CraftRecipe(capturedRecipeId);
         card.Add(craftButton);
@@ -741,6 +745,8 @@ public class VoxelInventoryUI : MonoBehaviour
             additionalPanel.EnableInClassList(AdditionalPanelVisibleClass, additionalInventoryVisible);
         if (panelTitle != null)
             panelTitle.text = craftingVisible ? "Crafting" : "Inventory";
+        if (additionalScroll != null)
+            additionalScroll.style.display = craftingVisible ? DisplayStyle.None : DisplayStyle.Flex;
         if (additionalContentHost != null)
             additionalContentHost.style.display = craftingVisible ? DisplayStyle.None : DisplayStyle.Flex;
         if (craftingContentHost != null)

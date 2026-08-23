@@ -1,0 +1,22 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <ui:Style src="GameMenu.uss" />
+    <ui:VisualElement name="game-root" class="game-root">
+        <ui:VisualElement name="game-menu-panel" class="game-menu-panel">
+            <ui:Label text="Paused" class="game-title" />
+            <ui:Button name="game-resume" text="Resume" class="menu-button menu-button--primary" />
+            <ui:Button name="game-save" text="Save World" class="menu-button" />
+            <ui:Button name="game-new" text="Main Menu" class="menu-button" />
+            <ui:Button name="game-settings" text="Settings" class="menu-button" />
+            <ui:Label name="game-status" class="game-status" />
+            <ui:VisualElement name="game-settings-panel" class="game-settings-panel">
+                <ui:Label text="Settings" class="settings-title" />
+                <ui:Label text="Volume" class="settings-label" />
+                <ui:Slider name="game-settings-volume" low-value="0" high-value="1" value="1" />
+                <ui:Label text="Mouse Sensitivity" class="settings-label" />
+                <ui:Slider name="game-settings-sensitivity" low-value="0.5" high-value="6" value="2" />
+                <ui:Toggle name="game-settings-fullscreen" label="Fullscreen" />
+                <ui:Button name="game-settings-close" text="Done" class="menu-button" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

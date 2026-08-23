@@ -68,10 +68,32 @@ public class VoxelPlayerController : MonoBehaviour
         };
     }
 
+    /// <summary>
+    /// Applies the user-configured mouse sensitivity to the active controller.
+    /// </summary>
+    public void SetMouseSensitivity(float value)
+    {
+        mouseSensitivity = Mathf.Clamp(value, 0.5f, 6f);
+    }
+
+    /// <summary>
+    /// Synchronizes the controller look state with the restored player and camera transforms.
+    /// </summary>
+    public void SyncLookToTransforms()
+    {
+        yaw = transform.eulerAngles.y;
+        if (cam == null)
+            return;
+
+        pitch = cam.transform.localEulerAngles.x;
+        if (pitch > 180f)
+            pitch -= 360f;
+        pitch = Mathf.Clamp(pitch, -89f, 89f);
+    }
+
     void OnEnable()
     {
-        /*Cursor.lockState = CursorLockMode.Locked;
-        Cursor.visible = false;*/
+        // Cursor state is managed by the gameplay menu.
         moveAction.Enable();
         lookAction.Enable();
         jumpAction.Enable();

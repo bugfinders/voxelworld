@@ -14,12 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::TerrainGenerationProfile
   seed: 184729
   heightNoiseScale: 0.01
-  heightOctaves: 1
+  heightOctaves: 3
   heightPersistence: 0.5
   heightLacunarity: 2
   heightFloor: 0
-  heightAmplitude: 1
-  treeDensityMultiplier: 1
+  heightAmplitude: 0.298
+  treeDensityMultiplier: 3
   materialWeights:
   - 0
   - 45

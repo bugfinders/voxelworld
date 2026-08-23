@@ -104,7 +104,7 @@ public sealed class CraftingRecipe
         if (string.IsNullOrEmpty(recipeId) || string.IsNullOrEmpty(outputItemId) || outputAmount <= 0 || (requiredStation != CraftingStationType.Inventory && requiredStation != CraftingStationType.Workbench) || ingredients == null || ingredients.Count == 0)
             return false;
 
-        HashSet<string> ingredientIds = new HashSet<string>(StringComparer.Ordinal);
+        HashSet<string> ingredientIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         for (int i = 0; i < ingredients.Count; i++)
         {
             CraftingIngredient ingredient = ingredients[i];

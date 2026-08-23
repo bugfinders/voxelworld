@@ -1,0 +1,111 @@
+:root {
+    --menu-background: rgba(10, 14, 22, 0.96);
+    --menu-card: rgba(25, 32, 45, 0.98);
+    --menu-text: rgb(244, 247, 250);
+    --menu-muted: rgb(170, 183, 202);
+    --menu-accent: rgb(255, 204, 72);
+}
+
+.start-root {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(10, 14, 22, 0.42);
+}
+
+.start-card,
+.settings-panel {
+    width: 420px;
+    padding: 34px;
+    align-items: center;
+    background-color: var(--menu-card);
+    border-left-width: 1px;
+    border-right-width: 1px;
+    border-top-width: 1px;
+    border-bottom-width: 1px;
+    border-left-color: rgba(255, 255, 255, 0.14);
+    border-right-color: rgba(255, 255, 255, 0.14);
+    border-top-color: rgba(255, 255, 255, 0.14);
+    border-bottom-color: rgba(255, 255, 255, 0.14);
+}
+
+.start-title {
+    color: var(--menu-text);
+    font-size: 46px;
+    -unity-font-style: bold;
+}
+
+.start-subtitle,
+.start-status {
+    color: var(--menu-muted);
+    font-size: 14px;
+    margin-top: 8px;
+    margin-bottom: 22px;
+    -unity-text-align: middle-center;
+}
+
+.start-buttons {
+    width: 100%;
+    align-items: stretch;
+}
+
+.menu-button {
+    min-height: 42px;
+    margin-top: 5px;
+    margin-bottom: 5px;
+    color: var(--menu-text);
+    background-color: rgba(63, 76, 96, 0.9);
+    border-left-width: 0;
+    border-right-width: 0;
+    border-top-width: 0;
+    border-bottom-width: 0;
+}
+
+.menu-button:hover {
+    background-color: rgb(83, 98, 122);
+}
+
+.menu-button--primary {
+    color: rgb(20, 23, 28);
+    background-color: var(--menu-accent);
+    -unity-font-style: bold;
+}
+
+.menu-button:disabled {
+    color: rgba(244, 247, 250, 0.4);
+    background-color: rgba(63, 76, 96, 0.35);
+}
+
+.start-status {
+    max-width: 350px;
+    margin-top: 18px;
+    margin-bottom: 0;
+}
+
+.settings-panel {
+    display: none;
+    align-items: stretch;
+}
+
+.settings-title {
+    align-self: center;
+    color: var(--menu-text);
+    font-size: 30px;
+    margin-bottom: 20px;
+    -unity-font-style: bold;
+}
+
+.settings-label {
+    color: var(--menu-text);
+    margin-top: 12px;
+}
+
+.settings-panel Slider,
+.settings-panel Toggle {
+    margin-top: 6px;
+    margin-bottom: 6px;
+}

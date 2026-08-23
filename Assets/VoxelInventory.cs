@@ -424,6 +424,57 @@ public class VoxelInventory : MonoBehaviour
         return counts;
     }
 
+    /// <summary>
+    /// Restores the ordered hotbar and inventory slots, including the selected slot, from a save file.
+    /// </summary>
+    public bool RestoreState(IList<InventorySlotSaveState> hotbarState, IList<InventorySlotSaveState> additionalState, int savedSelectedSlotIndex)
+    {
+        if (!isInitialized || hotbarState == null || additionalState == null || hotbarState.Count != HotbarSlotCount || additionalState.Count != AdditionalSlotCount)
+            return false;
+
+        EnsureHotbarSlots();
+        EnsureAdditionalSlots();
+        for (int i = 0; i < HotbarSlotCount; i++)
+            hotbarSlots[i] = CreateSlotFromSave(hotbarState[i]);
+        for (int i = 0; i < AdditionalSlotCount; i++)
+            additionalSlots[i] = CreateSlotFromSave(additionalState[i]);
+
+        selectedSlotIndex = IsValidHotbarIndex(savedSelectedSlotIndex) && !hotbarSlots[savedSelectedSlotIndex].IsEmpty
+            ? savedSelectedSlotIndex
+            : -1;
+        NotifyInventoryChanged();
+        SelectionChanged?.Invoke(selectedSlotIndex);
+        return true;
+    }
+
+    private InventorySlotData CreateSlotFromSave(InventorySlotSaveState savedSlot)
+    {
+        if (savedSlot == null || string.IsNullOrWhiteSpace(savedSlot.itemId) || savedSlot.count <= 0)
+            return CreateEmptySlot();
+
+        InventorySlotData definition = FindDefinitionByItemId(savedSlot.itemId);
+        string displayName = string.IsNullOrWhiteSpace(savedSlot.displayName)
+            ? definition == null ? savedSlot.itemId : definition.DisplayName
+            : savedSlot.displayName;
+        Texture2D icon = definition == null ? null : definition.Icon;
+        return new InventorySlotData(savedSlot.itemId, displayName, savedSlot.count, icon);
+    }
+
+    private InventorySlotData FindDefinitionByItemId(string itemId)
+    {
+        if (materialDefinitions == null || string.IsNullOrWhiteSpace(itemId))
+            return null;
+
+        for (int i = 0; i < materialDefinitions.Count; i++)
+        {
+            InventorySlotData definition = materialDefinitions[i];
+            if (definition != null && string.Equals(definition.ItemId, itemId.Trim(), StringComparison.OrdinalIgnoreCase))
+                return definition;
+        }
+
+        return null;
+    }
+
     private void EnsureHotbarSlots()
     {
         if (hotbarSlots == null)
@@ -515,7 +566,7 @@ public class VoxelInventory : MonoBehaviour
         for (int i = 0; i < slots.Count; i++)
         {
             InventorySlotData slot = slots[i];
-            if (slot != null && !slot.IsEmpty && string.Equals(slot.ItemId, itemId, StringComparison.Ordinal))
+            if (slot != null && !slot.IsEmpty && string.Equals(slot.ItemId, itemId, StringComparison.OrdinalIgnoreCase))
                 return slot;
         }
 
@@ -566,7 +617,7 @@ public class VoxelInventory : MonoBehaviour
         for (int i = 0; i < slots.Count; i++)
         {
             InventorySlotData slot = slots[i];
-            if (slot == null || slot.IsEmpty || !string.Equals(slot.ItemId, itemId, StringComparison.Ordinal))
+            if (slot == null || slot.IsEmpty || !string.Equals(slot.ItemId, itemId, StringComparison.OrdinalIgnoreCase))
                 continue;
 
             total += slot.Count;
@@ -593,7 +644,7 @@ public class VoxelInventory : MonoBehaviour
             for (int slotIndex = 0; slotIndex < allSlots.Count && remainingToConsume > 0; slotIndex++)
             {
                 InventorySlotData slot = allSlots[slotIndex];
-                if (slot == null || !string.Equals(slot.ItemId, ingredientIds[ingredientIndex], StringComparison.Ordinal))
+                if (slot == null || !string.Equals(slot.ItemId, ingredientIds[ingredientIndex], StringComparison.OrdinalIgnoreCase))
                     continue;
 
                 int consumed = Mathf.Min(remainingCounts[slotIndex], remainingToConsume);
@@ -605,7 +656,7 @@ public class VoxelInventory : MonoBehaviour
         string normalizedId = itemId.Trim();
         for (int i = 0; i < allSlots.Count; i++)
         {
-            if (remainingCounts[i] > 0 && string.Equals(allSlots[i].ItemId, normalizedId, StringComparison.Ordinal))
+            if (remainingCounts[i] > 0 && string.Equals(allSlots[i].ItemId, normalizedId, StringComparison.OrdinalIgnoreCase))
                 return CanIncreaseCount(remainingCounts[i], amount);
         }
 
@@ -646,7 +697,7 @@ public class VoxelInventory : MonoBehaviour
         for (int i = 0; i < slots.Count && consumedTotal < amount; i++)
         {
             InventorySlotData slot = slots[i];
-            if (slot == null || slot.IsEmpty || !string.Equals(slot.ItemId, itemId, StringComparison.Ordinal))
+            if (slot == null || slot.IsEmpty || !string.Equals(slot.ItemId, itemId, StringComparison.OrdinalIgnoreCase))
                 continue;
 
             int consumed = Mathf.Min(slot.Count, amount - consumedTotal);

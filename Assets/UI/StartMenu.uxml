@@ -1,0 +1,25 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <ui:Style src="StartMenu.uss" />
+    <ui:VisualElement name="start-root" class="start-root">
+        <ui:VisualElement name="start-card" class="start-card">
+            <ui:Label text="CUBEITS" class="start-title" />
+            <ui:Label text="A voxel world worth keeping" class="start-subtitle" />
+            <ui:VisualElement name="start-buttons" class="start-buttons">
+                <ui:Button name="start-new" text="New World" class="menu-button menu-button--primary" />
+                <ui:Button name="start-load" text="Load World" enabled="false" class="menu-button" />
+                <ui:Button name="start-settings" text="Settings" class="menu-button" />
+                <ui:Button name="start-save" text="Save" enabled="false" class="menu-button" />
+            </ui:VisualElement>
+            <ui:Label name="start-status" text="No save file found. Load is disabled until you save a world." class="start-status" />
+        </ui:VisualElement>
+        <ui:VisualElement name="settings-panel" class="settings-panel">
+            <ui:Label text="Settings" class="settings-title" />
+            <ui:Label text="Volume" class="settings-label" />
+            <ui:Slider name="settings-volume" low-value="0" high-value="1" value="1" />
+            <ui:Label text="Mouse Sensitivity" class="settings-label" />
+            <ui:Slider name="settings-sensitivity" low-value="0.5" high-value="6" value="2" />
+            <ui:Toggle name="settings-fullscreen" label="Fullscreen" />
+            <ui:Button name="settings-close" text="Done" class="menu-button" />
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>
