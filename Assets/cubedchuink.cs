@@ -9,7 +9,7 @@ public class ChunkedVoxelTerrain : MonoBehaviour
     public Material[] materials;
     [SerializeField] private PlaceableItemAsset[] placeableItems = new PlaceableItemAsset[0];
     [SerializeField] private TerrainGenerationProfile generationProfile;
-    public float[] materialWeights = { 0f, 45f, 25f, 10f, 7f, 6f, 3f, 2f, 1f, 0.2f, 0.8f };
+    public float[] materialWeights = { 0f, 45f, 25f, 10f, 7f, 6f, 3f, 2f, 1f, 0.2f, 0.8f, 0f, 0f, 0f, 0f, 0f, 0f };
     public int grassMaterialIndex = 0;
     public Transform player;
     public Camera cam;

@@ -1,0 +1,24 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4ed53cfdc7d7f424683a64f3943de8ed, type: 3}
+  m_Name: ClayBrick
+  m_EditorClassIdentifier: Assembly-CSharp::CraftingRecipeAsset
+  recipeId: clay_brick
+  outputItem: {fileID: 11400000, guid: b17441e7331b7184f8b21f595220b29b, type: 2}
+  outputItemId: clay_brick
+  outputDisplayName: Clay Brick
+  outputAmount: 2
+  outputIcon: {fileID: 2800000, guid: a7ce18e5f89a72b4bbe9371dff3c2b3c, type: 2}
+  requiredStation: 0
+  ingredientItemIds:
+  - Dirt
+  ingredientAmounts: 01000000i

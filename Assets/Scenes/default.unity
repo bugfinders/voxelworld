@@ -438,11 +438,15 @@ MonoBehaviour:
   - {fileID: 2100000, guid: 5d61edb649513af428371c74400b1ead, type: 2}
   - {fileID: 2100000, guid: 6e87089e5679e0d41ae8f7e627dbfaa7, type: 2}
   - {fileID: 2100000, guid: 526eebbd998f98c44aafc768f7c88b8c, type: 2}
+  - {fileID: 2100000, guid: c6bbddef1f363c94d9adad0d358e72d4, type: 2}
+  - {fileID: 2100000, guid: 8f39f21afa84b0c42b21359ae7878dee, type: 2}
   placeableItems:
   - {fileID: 11400000, guid: 44675ec55cfbc8f47a34dbfdfec7ce4c, type: 2}
   - {fileID: 11400000, guid: 0ff8137212b2cde41b32fa77b0cddb2e, type: 2}
   - {fileID: 11400000, guid: e7f0bb22873e1b4499993d07b3628072, type: 2}
   - {fileID: 11400000, guid: bdbbe7710b100a94a85ae366eff26287, type: 2}
+  - {fileID: 11400000, guid: b17441e7331b7184f8b21f595220b29b, type: 2}
+  - {fileID: 11400000, guid: 8da31661bfed3ef459d1ef7c6043dcdd, type: 2}
   generationProfile: {fileID: 11400000, guid: c1cd1645c996fb44086b6701b1fe63c5, type: 2}
   materialWeights:
   - 0
@@ -456,6 +460,8 @@ MonoBehaviour:
   - 1
   - 0.2
   - 0.8
+  - 0
+  - 0
   - 0
   - 0
   - 0
@@ -551,6 +557,8 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 520448c6bb1b0dd47a166d26f97c6807, type: 2}
   - {fileID: 11400000, guid: df0a79ee618249b4aa931828855980ea, type: 2}
   - {fileID: 11400000, guid: 9e882725f987d2544ad51beda00661b9, type: 2}
+  - {fileID: 11400000, guid: 237ce9804c904ab4788dbcd3f28717c7, type: 2}
+  - {fileID: 11400000, guid: 26dffafd96c2465449c12e5059431581, type: 2}
   workbenchItem: {fileID: 11400000, guid: 44675ec55cfbc8f47a34dbfdfec7ce4c, type: 2}
 --- !u!1 &1576708374
 GameObject:

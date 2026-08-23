@@ -10,6 +10,10 @@ public static class VoxelTextureAssetGenerator
     private const string MaterialFolder = RootFolder + "/Materials";
     private const string GrassBlockAtlasPath = TextureFolder + "/GrassBlock_16x32.asset";
     private const string WorkbenchAtlasPath = TextureFolder + "/Workbench_16x32.asset";
+
+    private const float BrickBumpScale = 2.5f;
+    private const float BrickParallaxStrength = 0.08f;
+    private const float BrickNormalStrength = 4f;
     [InitializeOnLoadMethod]
     private static void QueueCreation()
     {
@@ -20,10 +24,18 @@ public static class VoxelTextureAssetGenerator
     {
         if (AssetDatabase.LoadAssetAtPath<Material>(MaterialFolder + "/Grass.mat") == null ||
             AssetDatabase.LoadAssetAtPath<Texture2D>(GrassBlockAtlasPath) == null ||
-            AssetDatabase.LoadAssetAtPath<Texture2D>(WorkbenchAtlasPath) == null)
+            AssetDatabase.LoadAssetAtPath<Texture2D>(WorkbenchAtlasPath) == null ||
+            AssetDatabase.LoadAssetAtPath<Material>(MaterialFolder + "/ClayBrick.mat") == null ||
+            AssetDatabase.LoadAssetAtPath<Texture2D>(TextureFolder + "/ClayBrick_16x16.asset") == null ||
+            AssetDatabase.LoadAssetAtPath<Texture2D>(TextureFolder + "/ClayBrick_Height_16x16.asset") == null ||
+            AssetDatabase.LoadAssetAtPath<Texture2D>(TextureFolder + "/ClayBrick_Normal_16x16.asset") == null ||
+            AssetDatabase.LoadAssetAtPath<Material>(MaterialFolder + "/StoneBrick.mat") == null ||
+            AssetDatabase.LoadAssetAtPath<Texture2D>(TextureFolder + "/StoneBrick_16x16.asset") == null ||
+            AssetDatabase.LoadAssetAtPath<Texture2D>(TextureFolder + "/StoneBrick_Height_16x16.asset") == null ||
+            AssetDatabase.LoadAssetAtPath<Texture2D>(TextureFolder + "/StoneBrick_Normal_16x16.asset") == null)
             CreateBlockTextures();
         else
-            RefreshWorkbenchAtlas();
+            CreateBlockTextures();
     }
 
 
@@ -32,6 +44,8 @@ public static class VoxelTextureAssetGenerator
         Grass,
         Dirt,
         Stone,
+        ClayBrick,
+        StoneBrick,
         Sand,
         Wood,
         Leaves,
@@ -70,6 +84,15 @@ public static class VoxelTextureAssetGenerator
                 AssetDatabase.CreateAsset(texture, texturePath);
             }
 
+            if (kind == BlockKind.ClayBrick || kind == BlockKind.StoneBrick)
+            {
+                Texture2D generated = BuildTexture(kind, label);
+                texture.SetPixels(generated.GetPixels());
+                texture.Apply(false, false);
+                EditorUtility.SetDirty(texture);
+                UnityEngine.Object.DestroyImmediate(generated);
+            }
+
             Material material = AssetDatabase.LoadAssetAtPath<Material>(materialPath);
             if (material == null)
             {
@@ -85,6 +108,45 @@ public static class VoxelTextureAssetGenerator
             material.SetTexture("_BaseMap", texture);
             material.SetColor("_BaseColor", Color.white);
             material.SetFloat("_Smoothness", 0.05f);
+
+            if (kind == BlockKind.ClayBrick || kind == BlockKind.StoneBrick)
+            {
+                Texture2D heightTexture = AssetDatabase.LoadAssetAtPath<Texture2D>($"{TextureFolder}/{label}_Height_16x16.asset");
+                if (heightTexture == null)
+                {
+                    heightTexture = BuildHeightTexture(kind, label);
+                    AssetDatabase.CreateAsset(heightTexture, $"{TextureFolder}/{label}_Height_16x16.asset");
+                }
+                else
+                {
+                    Texture2D generatedHeight = BuildHeightTexture(kind, label);
+                    heightTexture.SetPixels(generatedHeight.GetPixels());
+                    heightTexture.Apply(false, false);
+                    EditorUtility.SetDirty(heightTexture);
+                    UnityEngine.Object.DestroyImmediate(generatedHeight);
+                }
+
+                Texture2D normalTexture = AssetDatabase.LoadAssetAtPath<Texture2D>($"{TextureFolder}/{label}_Normal_16x16.asset");
+                if (normalTexture == null)
+                {
+                    normalTexture = BuildNormalTexture(kind, label);
+                    AssetDatabase.CreateAsset(normalTexture, $"{TextureFolder}/{label}_Normal_16x16.asset");
+                }
+                else
+                {
+                    Texture2D generatedNormal = BuildNormalTexture(kind, label);
+                    normalTexture.SetPixels(generatedNormal.GetPixels());
+                    normalTexture.Apply(false, false);
+                    EditorUtility.SetDirty(normalTexture);
+                    UnityEngine.Object.DestroyImmediate(generatedNormal);
+                }
+
+                material.SetTexture("_ParallaxMap", heightTexture);
+                material.SetFloat("_Parallax", BrickParallaxStrength);
+                material.SetTexture("_BumpMap", normalTexture);
+                material.SetFloat("_BumpScale", BrickBumpScale);
+            }
+
             EditorUtility.SetDirty(material);
         }
 
@@ -255,6 +317,12 @@ public static class VoxelTextureAssetGenerator
             case BlockKind.Stone:
                 baseColor = Palette(value, new Color(0.42f, 0.46f, 0.50f), new Color(0.62f, 0.66f, 0.69f), new Color(0.28f, 0.31f, 0.35f));
                 break;
+            case BlockKind.ClayBrick:
+                baseColor = SampleBrick(x, y, new Color(0.36f, 0.14f, 0.09f), new Color(0.68f, 0.29f, 0.16f));
+                break;
+            case BlockKind.StoneBrick:
+                baseColor = SampleBrick(x, y, new Color(0.20f, 0.22f, 0.25f), new Color(0.40f, 0.43f, 0.47f));
+                break;
             case BlockKind.Sand:
                 baseColor = Palette(value, new Color(0.82f, 0.68f, 0.36f), new Color(0.98f, 0.86f, 0.52f), new Color(0.68f, 0.52f, 0.25f));
                 if ((x * 13 + y * 7 + value) % 31 == 0)
@@ -279,6 +347,80 @@ public static class VoxelTextureAssetGenerator
         }
 
         return new Color(Mathf.Clamp01(baseColor.r), Mathf.Clamp01(baseColor.g), Mathf.Clamp01(baseColor.b), 1f);
+    }
+
+    private static Color SampleBrick(int x, int y, Color mortar, Color body)
+    {
+        int row = y / 4;
+        int localY = y % 4;
+        int offset = row % 2 == 0 ? 0 : 4;
+        int localX = (x + offset) % 8;
+        return localY == 0 || localX == 0 ? mortar : body;
+    }
+
+    private static float SampleBrickHeight(BlockKind kind, int x, int y)
+    {
+        int row = y / 4;
+        int localY = y % 4;
+        int offset = row % 2 == 0 ? 0 : 4;
+        int localX = (x + offset) % 8;
+        if (localY == 0 || localX == 0)
+            return 0.18f;
+        if (localY == 1 || localX == 1)
+            return 0.95f;
+        if (localY == 3 || localX == 7)
+            return 0.35f;
+        return 0.72f;
+    }
+
+    private static Texture2D BuildHeightTexture(BlockKind kind, string label)
+    {
+        Texture2D texture = new Texture2D(TextureSize, TextureSize, TextureFormat.RGBA32, false, true)
+        {
+            name = label + "_Height_16x16",
+            filterMode = FilterMode.Point,
+            wrapMode = TextureWrapMode.Repeat,
+            anisoLevel = 0
+        };
+
+        Color[] pixels = new Color[TextureSize * TextureSize];
+        for (int y = 0; y < TextureSize; y++)
+        for (int x = 0; x < TextureSize; x++)
+        {
+            float height = SampleBrickHeight(kind, x, y);
+            pixels[y * TextureSize + x] = new Color(height, height, height, 1f);
+        }
+
+        texture.SetPixels(pixels);
+        texture.Apply(false, false);
+        return texture;
+    }
+
+    private static Texture2D BuildNormalTexture(BlockKind kind, string label)
+    {
+        Texture2D texture = new Texture2D(TextureSize, TextureSize, TextureFormat.RGBA32, false, true)
+        {
+            name = label + "_Normal_16x16",
+            filterMode = FilterMode.Point,
+            wrapMode = TextureWrapMode.Repeat,
+            anisoLevel = 0
+        };
+
+        Color[] pixels = new Color[TextureSize * TextureSize];
+        for (int y = 0; y < TextureSize; y++)
+        for (int x = 0; x < TextureSize; x++)
+        {
+            float left = SampleBrickHeight(kind, (x + TextureSize - 1) % TextureSize, y);
+            float right = SampleBrickHeight(kind, (x + 1) % TextureSize, y);
+            float down = SampleBrickHeight(kind, x, (y + TextureSize - 1) % TextureSize);
+            float up = SampleBrickHeight(kind, x, (y + 1) % TextureSize);
+            Vector3 normal = new Vector3((left - right) * BrickNormalStrength, (down - up) * BrickNormalStrength, 1f).normalized;
+            pixels[y * TextureSize + x] = new Color(normal.x * 0.5f + 0.5f, normal.y * 0.5f + 0.5f, normal.z * 0.5f + 0.5f, 1f);
+        }
+
+        texture.SetPixels(pixels);
+        texture.Apply(false, false);
+        return texture;
     }
 
     private static Color SampleOre(BlockKind kind, int x, int y, int value)

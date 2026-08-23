@@ -16,6 +16,6 @@ MonoBehaviour:
   displayName: Stool
   icon: {fileID: 0}
   voxelMaterial: {fileID: 2100000, guid: 6e87089e5679e0d41ae8f7e627dbfaa7, type: 2}
-  blocksTopPlacement: 1
+  blocksTopPlacement: 0
   opensCraftingMenu: 0
   craftingStation: 0

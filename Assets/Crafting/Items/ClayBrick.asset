@@ -10,12 +10,12 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: a40d428e6918ba243a9644e83d54de63, type: 3}
-  m_Name: Furnace
+  m_Name: ClayBrick
   m_EditorClassIdentifier: Assembly-CSharp::PlaceableItemAsset
-  itemId: furnace
-  displayName: Furnace
-  icon: {fileID: 0}
-  voxelMaterial: {fileID: 2100000, guid: 3b4ad0db1e56acd439513fd1326a5323, type: 2}
-  blocksTopPlacement: 1
+  itemId: clay_brick
+  displayName: Clay Brick
+  icon: {fileID: 2800000, guid: a7ce18e5f89a72b4bbe9371dff3c2b3c, type: 2}
+  voxelMaterial: {fileID: 2100000, guid: c6bbddef1f363c94d9adad0d358e72d4, type: 2}
+  blocksTopPlacement: 0
   opensCraftingMenu: 0
   craftingStation: 0

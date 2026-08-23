@@ -181,8 +181,8 @@ public class Chunk : MonoBehaviour
                 AddGrassSideFace(vertices, trianglesByMaterial[materialIndex], uvs, basePosition, dirtTile, grassTile,
                     new Vector3(0,0,1), new Vector3(0,1,1), new Vector3(1,1,1), new Vector3(1,0,1), true);
             else
-                AddQuad(vertices, trianglesByMaterial[materialIndex], uvs, basePosition, sideTile,
-                    new Vector3(0,0,1), new Vector3(1,0,1), new Vector3(1,1,1), new Vector3(0,1,1));
+                AddQuadReversed(vertices, trianglesByMaterial[materialIndex], uvs, basePosition, sideTile,
+                    new Vector3(0,0,1), new Vector3(0,1,1), new Vector3(1,1,1), new Vector3(1,0,1));
         }
 
         if (FaceVisible(x, y, z, -1, 0, 0))
@@ -191,8 +191,8 @@ public class Chunk : MonoBehaviour
                 AddGrassSideFace(vertices, trianglesByMaterial[materialIndex], uvs, basePosition, dirtTile, grassTile,
                     new Vector3(0,0,0), new Vector3(0,1,0), new Vector3(0,1,1), new Vector3(0,0,1), true);
             else
-                AddQuad(vertices, trianglesByMaterial[materialIndex], uvs, basePosition, sideTile,
-                    new Vector3(0,0,0), new Vector3(0,0,1), new Vector3(0,1,1), new Vector3(0,1,0));
+                AddQuadReversed(vertices, trianglesByMaterial[materialIndex], uvs, basePosition, sideTile,
+                    new Vector3(0,0,0), new Vector3(0,1,0), new Vector3(0,1,1), new Vector3(0,0,1));
         }
 
         if (FaceVisible(x, y, z, 1, 0, 0))
