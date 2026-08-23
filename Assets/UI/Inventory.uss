@@ -126,6 +126,15 @@
     -unity-text-align: middle-center;
 }
 
+.inventory-drag-ghost {
+    position: absolute;
+    width: 48px;
+    height: 48px;
+    opacity: 0.88;
+    scale: 1.05;
+    -unity-background-scale-mode: scale-to-fit;
+}
+
 .inventory-additional-panel {
     display: none;
     position: absolute;

@@ -44,6 +44,8 @@ public class VoxelInventoryUI : MonoBehaviour
     private const string CraftingUnavailableToggleName = "crafting-unavailable-toggle";
     private const string CraftingRecipeListName = "crafting-recipe-list";
     private const string TooltipName = "inventory-item-tooltip";
+    private const string DragGhostName = "inventory-drag-ghost";
+
     private const string TooltipItemName = "inventory-tooltip-item-name";
     private const string TooltipKindName = "inventory-tooltip-kind";
 
@@ -95,6 +97,8 @@ public class VoxelInventoryUI : MonoBehaviour
 
     private int dragPointerId;
     private VisualElement itemTooltip;
+    private Image dragGhost;
+
     private Label tooltipItemName;
     private Label tooltipKind;
     private Button hoveredTooltipSlot;
@@ -106,6 +110,7 @@ public class VoxelInventoryUI : MonoBehaviour
     public bool AdditionalInventoryVisible => additionalInventoryVisible;
     public bool CraftingVisible => craftingVisible;
     public static bool IsAnyWindowVisible => activeInstance != null && activeInstance.additionalInventoryVisible;
+    public static bool IsDragging => activeInstance != null && activeInstance.dragSourceActive;
 
     private void Awake()
     {
@@ -558,6 +563,19 @@ public class VoxelInventoryUI : MonoBehaviour
             tooltipKind.AddToClassList(TooltipKindClass);
         }
 
+        if (dragGhost == null)
+        {
+            dragGhost = root.Q<Image>(DragGhostName);
+            if (dragGhost == null)
+            {
+                dragGhost = new Image { name = DragGhostName, scaleMode = ScaleMode.ScaleToFit };
+                dragGhost.AddToClassList("inventory-drag-ghost");
+                root.Add(dragGhost);
+            }
+            dragGhost.pickingMode = PickingMode.Ignore;
+            dragGhost.style.display = DisplayStyle.None;
+        }
+
         itemTooltip.pickingMode = PickingMode.Ignore;
     }
 
@@ -579,6 +597,35 @@ public class VoxelInventoryUI : MonoBehaviour
                 RefreshCraftingView();
             });
 
+        root.RegisterCallback<PointerDownEvent>(evt =>
+        {
+            if (evt.button != 0)
+                return;
+
+            if (!TryGetSlotContext(evt.target as VisualElement, out InventoryContainer container, out int index, out Button slotButton))
+                return;
+
+            BeginDrag(container, index, evt.pointerId, slotButton);
+            if (container == InventoryContainer.Hotbar)
+                SelectHotbarSlot(index);
+            evt.StopPropagation();
+        }, TrickleDown.TrickleDown);
+
+        root.RegisterCallback<PointerMoveEvent>(evt =>
+        {
+            if (dragSourceActive && dragPointerId == evt.pointerId)
+                UpdateDragGhost(evt.position);
+        });
+
+        root.RegisterCallback<PointerUpEvent>(evt =>
+        {
+            if (evt.button != 0)
+                return;
+
+            CompleteDragAtPosition(evt.position, evt.pointerId, evt.shiftKey);
+            evt.StopPropagation();
+        });
+
         registeredRoot = root;
     }
 
@@ -587,7 +634,6 @@ public class VoxelInventoryUI : MonoBehaviour
         ChunkedVoxelTerrain nextTerrain = terrain;
         if (nextTerrain == null)
             nextTerrain = Object.FindFirstObjectByType<ChunkedVoxelTerrain>();
-
         VoxelInventory nextInventory = nextTerrain == null ? null : nextTerrain.Inventory;
         if (nextInventory == inventory)
         {
@@ -665,25 +711,7 @@ public class VoxelInventoryUI : MonoBehaviour
             PrepareSlotButton(button, index);
             if (!registeredHotbarButtons.Contains(button))
             {
-                int capturedIndex = index;
-                button.RegisterCallback<PointerDownEvent>(evt =>
-                {
-                    if (evt.button != 0)
-                        return;
-
-                    BeginDrag(InventoryContainer.Hotbar, capturedIndex, evt.pointerId, button);
-                    SelectHotbarSlot(capturedIndex);
-                    evt.StopPropagation();
-                });
-                button.RegisterCallback<PointerUpEvent>(evt =>
-                {
-                    if (evt.button != 0)
-                        return;
-
-                    CompleteDragAtPosition(evt.position, evt.pointerId, evt.shiftKey);
-                    evt.StopPropagation();
-                });
-                RegisterTooltipCallbacks(button, true, capturedIndex, false);
+                RegisterTooltipCallbacks(button, true, index, false);
                 registeredHotbarButtons.Add(button);
             }
 
@@ -742,22 +770,6 @@ public class VoxelInventoryUI : MonoBehaviour
             InventorySlotData slot = index < inventory.AdditionalSlots.Count ? inventory.AdditionalSlots[index] : null;
             Button button = CreateSlotButton(SlotClass);
             int capturedIndex = index;
-            button.RegisterCallback<PointerDownEvent>(evt =>
-            {
-                if (evt.button != 0)
-                    return;
-
-                BeginDrag(InventoryContainer.Player, capturedIndex, evt.pointerId, button);
-                evt.StopPropagation();
-            });
-            button.RegisterCallback<PointerUpEvent>(evt =>
-            {
-                if (evt.button != 0)
-                    return;
-
-                CompleteDragAtPosition(evt.position, evt.pointerId, evt.shiftKey);
-                evt.StopPropagation();
-            });
             RegisterTooltipCallbacks(button, false, capturedIndex, false);
             additionalContentHost.Add(button);
             RefreshAdditionalSlot(button, slot, index);
@@ -777,22 +789,6 @@ public class VoxelInventoryUI : MonoBehaviour
         {
             Button button = CreateSlotButton(SlotClass);
             int capturedIndex = index;
-            button.RegisterCallback<PointerDownEvent>(evt =>
-            {
-                if (evt.button != 0)
-                    return;
-
-                BeginDrag(InventoryContainer.Chest, capturedIndex, evt.pointerId, button);
-                evt.StopPropagation();
-            });
-            button.RegisterCallback<PointerUpEvent>(evt =>
-            {
-                if (evt.button != 0)
-                    return;
-
-                CompleteDragAtPosition(evt.position, evt.pointerId, evt.shiftKey);
-                evt.StopPropagation();
-            });
             RegisterTooltipCallbacks(button, false, capturedIndex, true);
             chestContentHost.Add(button);
             RefreshChestSlot(button, index);
@@ -990,8 +986,16 @@ public class VoxelInventoryUI : MonoBehaviour
         dragSourceContainer = sourceContainer;
         dragSourceIndex = sourceIndex;
         dragPointerId = pointerId;
-        dragSourceElement = sourceElement;
-        sourceElement.CapturePointer(pointerId);
+        dragSourceElement = root;
+        root.CapturePointer(pointerId);
+        if (dragGhost != null)
+        {
+            dragGhost.image = source.Icon;
+            dragGhost.style.display = source.Icon == null ? DisplayStyle.None : DisplayStyle.Flex;
+        }
+
+        VoxelPlayerController controller = Object.FindFirstObjectByType<VoxelPlayerController>();
+        controller?.CancelInteractionHold();
     }
 
     private InventorySlotData GetSlot(InventoryContainer container, int index)
@@ -1060,6 +1064,11 @@ public class VoxelInventoryUI : MonoBehaviour
     {
         if (dragSourceElement != null && dragSourceElement.HasPointerCapture(pointerId))
             dragSourceElement.ReleasePointer(pointerId);
+        if (dragGhost != null)
+        {
+            dragGhost.image = null;
+            dragGhost.style.display = DisplayStyle.None;
+        }
         dragSourceElement = null;
         dragSourceActive = false;
     }
@@ -1107,6 +1116,71 @@ public class VoxelInventoryUI : MonoBehaviour
 
         container = InventoryContainer.Player;
         index = -1;
+        return false;
+    }
+
+    private void UpdateDragGhost(Vector2 pointerPosition)
+    {
+        if (dragGhost == null || dragGhost.style.display == DisplayStyle.None)
+            return;
+
+        dragGhost.style.left = pointerPosition.x - root.worldBound.x + 12f;
+        dragGhost.style.top = pointerPosition.y - root.worldBound.y + 12f;
+    }
+
+    private bool TryGetSlotContext(VisualElement target, out InventoryContainer container, out int index, out Button slotButton)
+    {
+        VisualElement current = target;
+        while (current != null && current != root)
+        {
+            if (hotbarSlotsHost != null)
+            {
+                for (int i = 0; i < hotbarSlotsHost.childCount; i++)
+                {
+                    if (hotbarSlotsHost[i] == current)
+                    {
+                        container = InventoryContainer.Hotbar;
+                        index = i;
+                        slotButton = current as Button;
+                        return slotButton != null;
+                    }
+                }
+            }
+
+            if (additionalContentHost != null)
+            {
+                for (int i = 0; i < additionalContentHost.childCount; i++)
+                {
+                    if (additionalContentHost[i] == current)
+                    {
+                        container = InventoryContainer.Player;
+                        index = i;
+                        slotButton = current as Button;
+                        return slotButton != null;
+                    }
+                }
+            }
+
+            if (chestContentHost != null)
+            {
+                for (int i = 0; i < chestContentHost.childCount; i++)
+                {
+                    if (chestContentHost[i] == current)
+                    {
+                        container = InventoryContainer.Chest;
+                        index = i;
+                        slotButton = current as Button;
+                        return slotButton != null;
+                    }
+                }
+            }
+
+            current = current.parent;
+        }
+
+        container = InventoryContainer.Player;
+        index = -1;
+        slotButton = null;
         return false;
     }
 

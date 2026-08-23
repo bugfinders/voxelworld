@@ -145,6 +145,8 @@ public class VoxelPlayerController : MonoBehaviour
         interactionHeld = false;
         digTimer = 0f;
         mineRequested = false;
+        placeRequested = false;
+        useRequested = false;
         if (doAction == voxelAction.dig)
             doAction = voxelAction.nothing;
     }
@@ -154,6 +156,12 @@ public class VoxelPlayerController : MonoBehaviour
     /// </summary>
     public bool ConsumeUseRequest()
     {
+        if (VoxelInventoryUI.IsDragging)
+        {
+            useRequested = false;
+            return false;
+        }
+
         bool request = useRequested;
         useRequested = false;
         return isActiveAndEnabled && request;
@@ -164,6 +172,12 @@ public class VoxelPlayerController : MonoBehaviour
     /// </summary>
     public bool ConsumePlaceRequest()
     {
+        if (VoxelInventoryUI.IsDragging)
+        {
+            placeRequested = false;
+            return false;
+        }
+
         bool request = placeRequested;
         placeRequested = false;
         return isActiveAndEnabled && request;
@@ -174,6 +188,14 @@ public class VoxelPlayerController : MonoBehaviour
     /// </summary>
     public bool ConsumeMineRequest()
     {
+        if (VoxelInventoryUI.IsDragging)
+        {
+            mineRequested = false;
+            if (doAction == voxelAction.dig)
+                doAction = voxelAction.nothing;
+            return false;
+        }
+
         bool request = mineRequested || doAction == voxelAction.dig;
         mineRequested = false;
         if (doAction == voxelAction.dig) doAction = voxelAction.nothing;

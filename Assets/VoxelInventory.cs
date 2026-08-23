@@ -765,9 +765,15 @@ public class VoxelInventory : MonoBehaviour
         if (materialIndex < 0 || materialIndex >= materialDefinitions.Count)
             return;
 
-        materialDefinitions[materialIndex] = placeableItem != null && placeableItem.IsValid
-            ? new InventorySlotData(placeableItem.ItemId, placeableItem.DisplayName, 0, placeableItem.Icon, placeableItem.ItemKind)
-            : CreateMaterialSlot(materialIndex, material);
+        if (placeableItem != null && placeableItem.IsValid)
+        {
+            Texture2D icon = placeableItem.Icon ?? GetMaterialTexture(material);
+            materialDefinitions[materialIndex] = new InventorySlotData(placeableItem.ItemId, placeableItem.DisplayName, 0, icon, placeableItem.ItemKind);
+        }
+        else
+        {
+            materialDefinitions[materialIndex] = CreateMaterialSlot(materialIndex, material);
+        }
     }
 
     
@@ -994,10 +1000,27 @@ public class VoxelInventory : MonoBehaviour
         if (emptyIndex < 0)
             return false;
 
-        targetList[emptyIndex] = new InventorySlotData(normalizedId, displayName, amount, icon, ResolveItemKind(normalizedId));
+        targetList[emptyIndex] = new InventorySlotData(normalizedId, displayName, amount, ResolveItemIcon(normalizedId, icon), ResolveItemKind(normalizedId));
         return true;
     }
 
+    private Texture2D ResolveItemIcon(string itemId, Texture2D icon)
+    {
+        if (icon != null)
+            return icon;
+
+        InventorySlotData definition = FindDefinitionByItemId(itemId);
+        return definition == null ? null : definition.Icon;
+    }
+
+    private static Texture2D GetMaterialTexture(Material material)
+    {
+        if (material == null)
+            return null;
+
+        Texture2D icon = material.GetTexture("_BaseMap") as Texture2D;
+        return icon ?? material.GetTexture("_MainTex") as Texture2D;
+    }
     private static InventorySlotData CreateEmptySlot()
     {
         return new InventorySlotData(string.Empty, string.Empty, 0, null);
