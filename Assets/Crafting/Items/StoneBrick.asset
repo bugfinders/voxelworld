@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PlaceableItemAsset
   itemId: stone_brick
   displayName: Stone Brick
-  icon: {fileID: 2800000, guid: 26dffafd96c2465449c12e5059431581, type: 2}
+  icon: {fileID: 2800000, guid: 23b1add10d783de4ca8694f9721ec24a, type: 3}
   voxelMaterial: {fileID: 2100000, guid: 8f39f21afa84b0c42b21359ae7878dee, type: 2}
   blocksTopPlacement: 0
   opensCraftingMenu: 0
