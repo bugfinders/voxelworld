@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Workbench
   m_EditorClassIdentifier: Assembly-CSharp::CraftingRecipeAsset
   recipeId: workbench
+  enabledInGame: 1
   outputItem: {fileID: 11400000, guid: 44675ec55cfbc8f47a34dbfdfec7ce4c, type: 2}
   outputItemId: workbench
   outputDisplayName: Workbench

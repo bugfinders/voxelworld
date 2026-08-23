@@ -97,6 +97,34 @@ public class CraftingSystem : MonoBehaviour
         CraftingChanged?.Invoke();
     }
 
+
+    /// <summary>
+    /// Enables or disables a prepared recipe for the current game session.
+    /// </summary>
+    public bool SetRecipeEnabled(string recipeId, bool enabled)
+    {
+        InitializeCatalog();
+        if (string.IsNullOrWhiteSpace(recipeId))
+            return false;
+
+        string normalizedId = recipeId.Trim();
+        for (int i = 0; i < allRecipes.Count; i++)
+        {
+            CraftingRecipe recipe = allRecipes[i];
+            if (recipe == null || !string.Equals(recipe.RecipeId, normalizedId, StringComparison.OrdinalIgnoreCase))
+                continue;
+            if (recipe.EnabledInGame == enabled)
+                return false;
+
+            recipe.SetEnabledInGame(enabled);
+            RebuildActiveRecipes();
+            CraftingChanged?.Invoke();
+            return true;
+        }
+
+        return false;
+    }
+
     /// <summary>
     /// Returns whether the requested active-station recipe can currently be crafted.
     /// </summary>
@@ -285,7 +313,7 @@ public class CraftingSystem : MonoBehaviour
         for (int i = 0; i < allRecipes.Count; i++)
         {
             CraftingRecipe recipe = allRecipes[i];
-            if (recipe == null || !recipe.IsValid() || (recipe.RecipeType & activeRecipeTypes) == CraftingRecipeType.None)
+            if (recipe == null || !recipe.EnabledInGame || !recipe.IsValid() || (recipe.RecipeType & activeRecipeTypes) == CraftingRecipeType.None)
                 continue;
 
             if (inventory == null || !inventory.IsInitialized || HasHarvestedAllIngredients(recipe))

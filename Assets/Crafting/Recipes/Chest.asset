@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Chest
   m_EditorClassIdentifier: Assembly-CSharp::CraftingRecipeAsset
   recipeId: chest
+  enabledInGame: 1
   outputItem: {fileID: 11400000, guid: e7f0bb22873e1b4499993d07b3628072, type: 2}
   outputItemId: chest
   outputDisplayName: Chest

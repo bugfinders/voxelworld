@@ -54,6 +54,7 @@ public sealed class CraftingIngredient
 public sealed class CraftingRecipe
 {
     [SerializeField] private string recipeId;
+    [SerializeField] private bool enabledInGame = true;
     [SerializeField] private string outputItemId;
     [SerializeField] private string outputDisplayName;
     [SerializeField] private int outputAmount;
@@ -84,6 +85,17 @@ public sealed class CraftingRecipe
     public int OutputAmount => outputAmount;
     public Texture2D OutputIcon => outputIcon;
     public CraftingRecipeType RecipeType => recipeType;
+
+    /// <summary>
+    /// Gets whether this recipe is available to the runtime crafting catalog.
+    /// </summary>
+    public bool EnabledInGame => enabledInGame;
+
+    internal void SetEnabledInGame(bool value)
+    {
+        enabledInGame = value;
+    }
+
     public IReadOnlyList<CraftingIngredient> Ingredients => ingredients;
 
     public int TotalIngredientCount

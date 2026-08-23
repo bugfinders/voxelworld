@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: ClayBrick
   m_EditorClassIdentifier: Assembly-CSharp::CraftingRecipeAsset
   recipeId: clay_brick
+  enabledInGame: 1
   outputItem: {fileID: 11400000, guid: b17441e7331b7184f8b21f595220b29b, type: 2}
   outputItemId: clay_brick
   outputDisplayName: Clay Brick

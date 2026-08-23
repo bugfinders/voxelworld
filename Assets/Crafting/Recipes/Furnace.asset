@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Furnace
   m_EditorClassIdentifier: Assembly-CSharp::CraftingRecipeAsset
   recipeId: furnace
+  enabledInGame: 0
   outputItem: {fileID: 11400000, guid: bdbbe7710b100a94a85ae366eff26287, type: 2}
   outputItemId: furnace
   outputDisplayName: Furnace

@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Stool
   m_EditorClassIdentifier: Assembly-CSharp::CraftingRecipeAsset
   recipeId: stool
+  enabledInGame: 0
   outputItem: {fileID: 11400000, guid: 0ff8137212b2cde41b32fa77b0cddb2e, type: 2}
   outputItemId: stool
   outputDisplayName: Stool

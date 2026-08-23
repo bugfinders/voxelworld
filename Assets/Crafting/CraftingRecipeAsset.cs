@@ -5,6 +5,7 @@ using UnityEngine;
 public sealed class CraftingRecipeAsset : ScriptableObject
 {
     [SerializeField] private string recipeId;
+    [SerializeField] private bool enabledInGame = true;
     [SerializeField] private PlaceableItemAsset outputItem;
     [SerializeField] private string outputItemId;
     [SerializeField] private string outputDisplayName;
@@ -13,6 +14,12 @@ public sealed class CraftingRecipeAsset : ScriptableObject
     [SerializeField] private CraftingRecipeType recipeType = CraftingRecipeType.Basic;
     [SerializeField] private string[] ingredientItemIds = new string[0];
     [SerializeField] private int[] ingredientAmounts = new int[0];
+
+    /// <summary>
+    /// Gets whether this prepared recipe is included in the game recipe catalog.
+    /// </summary>
+    public bool EnabledInGame => enabledInGame;
+
 
     /// <summary>
     /// Converts the editable asset data into the runtime recipe representation used by the crafting system.
@@ -29,6 +36,8 @@ public sealed class CraftingRecipeAsset : ScriptableObject
         string resolvedOutputItemId = outputItem != null && !string.IsNullOrWhiteSpace(outputItem.ItemId) ? outputItem.ItemId : outputItemId;
         string resolvedDisplayName = outputItem != null ? outputItem.DisplayName : outputDisplayName;
         Texture2D resolvedIcon = outputItem != null && outputItem.Icon != null ? outputItem.Icon : outputIcon;
-        return new CraftingRecipe(recipeId, resolvedOutputItemId, resolvedDisplayName, outputAmount, recipeType, resolvedIcon, runtimeIngredients.ToArray());
+        CraftingRecipe recipe = new CraftingRecipe(recipeId, resolvedOutputItemId, resolvedDisplayName, outputAmount, recipeType, resolvedIcon, runtimeIngredients.ToArray());
+        recipe.SetEnabledInGame(enabledInGame);
+        return recipe;
     }
 }

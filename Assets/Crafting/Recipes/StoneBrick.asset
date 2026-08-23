@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: StoneBrick
   m_EditorClassIdentifier: Assembly-CSharp::CraftingRecipeAsset
   recipeId: stone_brick
+  enabledInGame: 1
   outputItem: {fileID: 11400000, guid: 87cfeb4103125fe47bfef7e3a5b3a339, type: 2}
   outputItemId: stone_brick
   outputDisplayName: Stone Brick
