@@ -65,7 +65,7 @@ public sealed class GameplayMenuController : MonoBehaviour
 
     private void Update()
     {
-        if (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame)
+        if (Keyboard.current != null && Keyboard.current.mKey.wasPressedThisFrame)
         {
             if (isOpen)
                 CloseMenu();

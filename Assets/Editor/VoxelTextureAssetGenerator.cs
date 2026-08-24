@@ -6,13 +6,13 @@ using UnityEngine;
 
 public static class VoxelTextureAssetGenerator
 {
-    private const int TextureSize = 32;
+    private const int TextureSize = 16;
     private const string RootFolder = "Assets/VoxelTextures";
     private const string TextureFolder = RootFolder + "/Textures";
     private const string MaterialFolder = RootFolder + "/Materials";
-    private const string GrassBlockAtlasPath = TextureFolder + "/GrassBlock_32x64.png";
-    private const string WorkbenchAtlasPath = TextureFolder + "/Workbench_32x64.png";
-    private const string ChestAtlasPath = TextureFolder + "/Chest_32x64.png";
+    private const string GrassBlockAtlasPath = TextureFolder + "/GrassBlock_16x32.png";
+    private const string WorkbenchAtlasPath = TextureFolder + "/Workbench_16x32.png";
+    private const string ChestAtlasPath = TextureFolder + "/Chest_16x32.png";
 
 
     [InitializeOnLoadMethod]
@@ -20,6 +20,7 @@ public static class VoxelTextureAssetGenerator
     {
         EditorApplication.delayCall += CreateIfMissing;
     }
+
 
     private static void CreateIfMissing()
     {
@@ -150,13 +151,13 @@ public static class VoxelTextureAssetGenerator
 
     private static void UpdateEditableTextureReferences()
     {
-        UpdateItemTextureReference("Assets/Crafting/Items/ClayBrick.asset", TextureFolder + "/ClayBrick_32x32.png");
-        UpdateItemTextureReference("Assets/Crafting/Items/StoneBrick.asset", TextureFolder + "/StoneBrick_32x32.png");
-        UpdateRecipeTextureReference("Assets/Crafting/Recipes/StoneBrick.asset", TextureFolder + "/StoneBrick_32x32.png");
+        UpdateItemTextureReference("Assets/Crafting/Items/ClayBrick.asset", TextureFolder + "/ClayBrick_16x16.png");
+        UpdateItemTextureReference("Assets/Crafting/Items/StoneBrick.asset", TextureFolder + "/StoneBrick_16x16.png");
+        UpdateRecipeTextureReference("Assets/Crafting/Recipes/StoneBrick.asset", TextureFolder + "/StoneBrick_16x16.png");
 
-        UpdateRecipeTextureReference("Assets/Crafting/Recipes/ClayBrick.asset", TextureFolder + "/ClayBrick_32x32.png");
-        UpdateItemTextureReference("Assets/Crafting/Items/Chest.asset", TextureFolder + "/Chest_32x32.png");
-        UpdateRecipeTextureReference("Assets/Crafting/Recipes/Chest.asset", TextureFolder + "/Chest_32x32.png");
+        UpdateRecipeTextureReference("Assets/Crafting/Recipes/ClayBrick.asset", TextureFolder + "/ClayBrick_16x16.png");
+        UpdateItemTextureReference("Assets/Crafting/Items/Chest.asset", TextureFolder + "/Chest_16x32.png");
+        UpdateRecipeTextureReference("Assets/Crafting/Recipes/Chest.asset", TextureFolder + "/Chest_16x32.png");
     }
 
     private static void UpdateItemTextureReference(string assetPath, string texturePath)
@@ -232,7 +233,7 @@ public static class VoxelTextureAssetGenerator
         foreach (BlockKind kind in Enum.GetValues(typeof(BlockKind)))
         {
             string label = GetLabel(kind);
-            string texturePath = $"{TextureFolder}/{label}_32x32.png";
+            string texturePath = $"{TextureFolder}/{label}_16x16.png";
             string materialPath = $"{MaterialFolder}/{label}.mat";
 
             Texture2D texture = LoadOrCreatePngTexture(texturePath, () => BuildTexture(kind, label), false);
@@ -306,7 +307,7 @@ public static class VoxelTextureAssetGenerator
     {
         Texture2D texture = new Texture2D(TextureSize, TextureSize * 2, TextureFormat.RGBA32, false, false)
         {
-            name = "GrassBlock_32x64",
+            name = "GrassBlock_16x32",
             filterMode = FilterMode.Point,
             wrapMode = TextureWrapMode.Clamp,
             anisoLevel = 0
@@ -317,7 +318,7 @@ public static class VoxelTextureAssetGenerator
         for (int x = 0; x < TextureSize; x++)
         {
             BlockKind sourceKind = y < TextureSize ? BlockKind.Dirt : BlockKind.Grass;
-            pixels[y * TextureSize + x] = Sample(sourceKind, x / 2, (y / 2) % 16);
+            pixels[y * TextureSize + x] = Sample(sourceKind, x, y % TextureSize);
         }
 
         texture.SetPixels(pixels);
@@ -343,7 +344,7 @@ public static class VoxelTextureAssetGenerator
     {
         Texture2D texture = new Texture2D(TextureSize, TextureSize * 2, TextureFormat.RGBA32, false, false)
         {
-            name = "Workbench_32x64",
+            name = "Workbench_16x32",
             filterMode = FilterMode.Point,
             wrapMode = TextureWrapMode.Clamp,
             anisoLevel = 0
@@ -353,7 +354,7 @@ public static class VoxelTextureAssetGenerator
         for (int y = 0; y < TextureSize * 2; y++)
         for (int x = 0; x < TextureSize; x++)
         {
-            Color color = y < TextureSize ? SampleWorkbenchSide(x / 2, (y / 2) % 16) : SampleWorkbenchTop(x / 2, (y / 2) % 16);
+            Color color = y < TextureSize ? SampleWorkbenchSide(x, y % TextureSize) : SampleWorkbenchTop(x, y % TextureSize);
             pixels[y * TextureSize + x] = color;
         }
 
@@ -366,7 +367,7 @@ public static class VoxelTextureAssetGenerator
     {
         Texture2D texture = new Texture2D(TextureSize, TextureSize * 2, TextureFormat.RGBA32, false, false)
         {
-            name = "Chest_32x64",
+            name = "Chest_16x32",
             filterMode = FilterMode.Point,
             wrapMode = TextureWrapMode.Clamp,
             anisoLevel = 0
@@ -376,9 +377,7 @@ public static class VoxelTextureAssetGenerator
         for (int y = 0; y < TextureSize * 2; y++)
         for (int x = 0; x < TextureSize; x++)
         {
-            Color color = y < TextureSize
-                ? SampleChestSide(x / 2, (y / 2) % 16)
-                : SampleChestTop(x / 2, (y / 2) % 16);
+            Color color = y < TextureSize ? SampleChestSide(x, y % TextureSize) : SampleChestTop(x, y % TextureSize);
             pixels[y * TextureSize + x] = color;
         }
 
@@ -396,7 +395,7 @@ public static class VoxelTextureAssetGenerator
             color = lidWood;
         if (y == 11 || x == 1 || x == TextureSize - 2)
             color = darkWood;
-        if (x >= 14 && x <= 17 && y >= 5 && y <= 8)
+        if (x >= TextureSize / 2 - 1 && x <= TextureSize / 2 && y >= 5 && y <= 8)
             color = new Color(0.88f, 0.65f, 0.18f, 1f);
         return color;
     }
@@ -407,7 +406,7 @@ public static class VoxelTextureAssetGenerator
         Color color = Palette(value, new Color(0.62f, 0.32f, 0.08f), new Color(0.82f, 0.49f, 0.14f), new Color(0.36f, 0.15f, 0.035f));
         if (x == 1 || x == TextureSize - 2 || y == 1 || y == TextureSize - 2)
             color = new Color(0.20f, 0.08f, 0.025f, 1f);
-        else if (x == 15 || x == 16)
+        else if (x == TextureSize / 2 - 1 || x == TextureSize / 2)
             color *= 0.82f;
         return new Color(Mathf.Clamp01(color.r), Mathf.Clamp01(color.g), Mathf.Clamp01(color.b), 1f);
     }
@@ -444,7 +443,7 @@ public static class VoxelTextureAssetGenerator
     {
         Texture2D texture = new Texture2D(TextureSize, TextureSize, TextureFormat.RGBA32, false, false)
         {
-            name = label + "_32x32",
+            name = label + "_16x16",
             filterMode = FilterMode.Point,
             wrapMode = TextureWrapMode.Repeat,
             anisoLevel = 0
@@ -455,7 +454,7 @@ public static class VoxelTextureAssetGenerator
         {
             for (int x = 0; x < TextureSize; x++)
             {
-                pixels[y * TextureSize + x] = Sample(kind, x / 2, y / 2);
+                pixels[y * TextureSize + x] = Sample(kind, x, y);
             }
         }
 

@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<test-run id="2" testcasecount="9" result="Passed" total="9" passed="9" failed="0" inconclusive="0" skipped="0" asserts="0" engine-version="3.5.0.0" clr-version="4.0.30319.42000" start-time="2026-08-23 21:13:24Z" end-time="2026-08-23 21:13:27Z" duration="3.0127722">
+  <test-suite type="TestSuite" id="1000" name="cubits" fullname="cubits" runstate="Runnable" testcasecount="9" result="Passed" start-time="2026-08-23 21:13:24Z" end-time="2026-08-23 21:13:27Z" duration="3.012772" total="9" passed="9" failed="0" inconclusive="0" skipped="0" asserts="0">
+    <properties>
+      <property name="platform" value="EditMode" />
+    </properties>
+    <test-suite type="Assembly" id="1011" name="Assembly-CSharp-Editor.dll" fullname="C:/Users/Liz/Documents/Unity/cubeits/Library/ScriptAssemblies/Assembly-CSharp-Editor.dll" runstate="Runnable" testcasecount="9" result="Passed" start-time="2026-08-23 21:13:24Z" end-time="2026-08-23 21:13:27Z" duration="2.513076" total="9" passed="9" failed="0" inconclusive="0" skipped="0" asserts="0">
+      <properties>
+        <property name="_PID" value="29372" />
+        <property name="_APPDOMAIN" value="Unity Child Domain" />
+        <property name="platform" value="EditMode" />
+        <property name="EditorOnly" value="True" />
+      </properties>
+      <test-suite type="TestFixture" id="1001" name="CubeitsCoreRegressionTests" fullname="CubeitsCoreRegressionTests" classname="CubeitsCoreRegressionTests" runstate="Runnable" testcasecount="9" result="Passed" start-time="2026-08-23 21:13:24Z" end-time="2026-08-23 21:13:27Z" duration="2.420584" total="9" passed="9" failed="0" inconclusive="0" skipped="0" asserts="0">
+        <properties />
+        <test-case id="1009" name="ChestInventory_MergesPlayerItemsAndRejectsInvalidState" fullname="CubeitsCoreRegressionTests.ChestInventory_MergesPlayerItemsAndRejectsInvalidState" methodname="ChestInventory_MergesPlayerItemsAndRejectsInvalidState" classname="CubeitsCoreRegressionTests" runstate="Runnable" seed="12005112" result="Passed" start-time="2026-08-23 21:13:25Z" end-time="2026-08-23 21:13:26Z" duration="1.246010" asserts="0">
+          <properties>
+            <property name="retryIteration" value="0" />
+            <property name="repeatIteration" value="0" />
+          </properties>
+        </test-case>
+        <test-case id="1004" name="CraftingRecipe_AllowsNineIngredientsForStationRecipes" fullname="CubeitsCoreRegressionTests.CraftingRecipe_AllowsNineIngredientsForStationRecipes" methodname="CraftingRecipe_AllowsNineIngredientsForStationRecipes" classname="CubeitsCoreRegressionTests" runstate="Runnable" seed="1384519405" result="Passed" start-time="2026-08-23 21:13:26Z" end-time="2026-08-23 21:13:26Z" duration="0.064363" asserts="0">
+          <properties>
+            <property name="retryIteration" value="0" />
+            <property name="repeatIteration" value="0" />
+          </properties>
+        </test-case>
+        <test-case id="1003" name="CraftingRecipe_RejectsDuplicateIngredientsAndBasicRecipesOverFourItems" fullname="CubeitsCoreRegressionTests.CraftingRecipe_RejectsDuplicateIngredientsAndBasicRecipesOverFourItems" methodname="CraftingRecipe_RejectsDuplicateIngredientsAndBasicRecipesOverFourItems" classname="CubeitsCoreRegressionTests" runstate="Runnable" seed="2043931631" result="Passed" start-time="2026-08-23 21:13:26Z" end-time="2026-08-23 21:13:26Z" duration="0.004776" asserts="0">
+          <properties>
+            <property name="retryIteration" value="0" />
+            <property name="repeatIteration" value="0" />
+          </properties>
+        </test-case>
+        <test-case id="1002" name="InventorySlotData_NormalizesIdentifiersDisplayNamesAndCounts" fullname="CubeitsCoreRegressionTests.InventorySlotData_NormalizesIdentifiersDisplayNamesAndCounts" methodname="InventorySlotData_NormalizesIdentifiersDisplayNamesAndCounts" classname="CubeitsCoreRegressionTests" runstate="Runnable" seed="1652960842" result="Passed" start-time="2026-08-23 21:13:26Z" end-time="2026-08-23 21:13:26Z" duration="0.013702" asserts="0">
+          <properties>
+            <property name="retryIteration" value="0" />
+            <property name="repeatIteration" value="0" />
+          </properties>
+        </test-case>
+        <test-case id="1005" name="VoxelInventory_InitializesFixedSlotCountsAndMergesItemIdsCaseInsensitively" fullname="CubeitsCoreRegressionTests.VoxelInventory_InitializesFixedSlotCountsAndMergesItemIdsCaseInsensitively" methodname="VoxelInventory_InitializesFixedSlotCountsAndMergesItemIdsCaseInsensitively" classname="CubeitsCoreRegressionTests" runstate="Runnable" seed="601073437" result="Passed" start-time="2026-08-23 21:13:26Z" end-time="2026-08-23 21:13:26Z" duration="0.030238" asserts="0">
+          <properties>
+            <property name="retryIteration" value="0" />
+            <property name="repeatIteration" value="0" />
+          </properties>
+        </test-case>
+        <test-case id="1010" name="VoxelInventory_RestoreStateOnlySelectsAnOccupiedHotbarSlot" fullname="CubeitsCoreRegressionTests.VoxelInventory_RestoreStateOnlySelectsAnOccupiedHotbarSlot" methodname="VoxelInventory_RestoreStateOnlySelectsAnOccupiedHotbarSlot" classname="CubeitsCoreRegressionTests" runstate="Runnable" seed="228439895" result="Passed" start-time="2026-08-23 21:13:26Z" end-time="2026-08-23 21:13:26Z" duration="0.021884" asserts="0">
+          <properties>
+            <property name="retryIteration" value="0" />
+            <property name="repeatIteration" value="0" />
+          </properties>
+        </test-case>
+        <test-case id="1008" name="VoxelInventory_SelectedMaterialCanBeResolvedAndConsumed" fullname="CubeitsCoreRegressionTests.VoxelInventory_SelectedMaterialCanBeResolvedAndConsumed" methodname="VoxelInventory_SelectedMaterialCanBeResolvedAndConsumed" classname="CubeitsCoreRegressionTests" runstate="Runnable" seed="1512552571" result="Passed" start-time="2026-08-23 21:13:26Z" end-time="2026-08-23 21:13:26Z" duration="0.128682" asserts="0">
+          <properties>
+            <property name="retryIteration" value="0" />
+            <property name="repeatIteration" value="0" />
+          </properties>
+          <output><![CDATA[Inventory: Material_0 = 1
+]]></output>
+        </test-case>
+        <test-case id="1007" name="VoxelInventory_TryCraftConsumesIngredientsAndAddsOutputAtomically" fullname="CubeitsCoreRegressionTests.VoxelInventory_TryCraftConsumesIngredientsAndAddsOutputAtomically" methodname="VoxelInventory_TryCraftConsumesIngredientsAndAddsOutputAtomically" classname="CubeitsCoreRegressionTests" runstate="Runnable" seed="726800280" result="Passed" start-time="2026-08-23 21:13:26Z" end-time="2026-08-23 21:13:26Z" duration="0.013012" asserts="0">
+          <properties>
+            <property name="retryIteration" value="0" />
+            <property name="repeatIteration" value="0" />
+          </properties>
+        </test-case>
+        <test-case id="1006" name="VoxelInventory_TryMoveItemSwapsWithEmptySlotAndRejectsInvalidTransfers" fullname="CubeitsCoreRegressionTests.VoxelInventory_TryMoveItemSwapsWithEmptySlotAndRejectsInvalidTransfers" methodname="VoxelInventory_TryMoveItemSwapsWithEmptySlotAndRejectsInvalidTransfers" classname="CubeitsCoreRegressionTests" runstate="Runnable" seed="901555878" result="Passed" start-time="2026-08-23 21:13:26Z" end-time="2026-08-23 21:13:26Z" duration="0.005342" asserts="0">
+          <properties>
+            <property name="retryIteration" value="0" />
+            <property name="repeatIteration" value="0" />
+          </properties>
+          <output><![CDATA[Saving results to: C:/Users/Liz/AppData/LocalLow/DefaultCompany/cubits\TestResults.xml
+]]></output>
+        </test-case>
+      </test-suite>
+    </test-suite>
+  </test-suite>
+</test-run>

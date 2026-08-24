@@ -18,7 +18,7 @@ MonoBehaviour:
   outputItemId: clay_brick
   outputDisplayName: Clay Brick
   outputAmount: 2
-  outputIcon: {fileID: 2800000, guid: 7956c7d4114f44f43b8c4ad36d076a12, type: 3}
+  outputIcon: {fileID: 2800000, guid: 0bde32d24fb0a454cbc4bead0c144dec, type: 3}
   recipeType: 1
   ingredientItemIds:
   - Dirt

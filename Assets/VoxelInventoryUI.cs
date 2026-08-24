@@ -753,11 +753,14 @@ public class VoxelInventoryUI : MonoBehaviour
             button.Add(itemName);
         }
         itemName.AddToClassList(ItemNameClass);
+
+        Label key = button.Q<Label>("inventory-slot-key");
+        if (key != null)
+            key.BringToFront();
     }
 
     private void GenerateAdditionalSlots()
     {
-        if (additionalContentHost == null)
             return;
 
         additionalContentHost.Clear();
