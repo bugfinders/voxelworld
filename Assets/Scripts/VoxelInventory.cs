@@ -112,7 +112,7 @@ public class VoxelInventory : MonoBehaviour
         if (existingSlot != null)
         {
             existingSlot.SetCount(existingSlot.Count + 1);
-            Debug.Log($"Inventory: {existingSlot.DisplayName} = {existingSlot.Count}");
+            // Debug.Log($"Inventory: {existingSlot.DisplayName} = {existingSlot.Count}");
             NotifyInventoryChanged();
             return;
         }
@@ -133,7 +133,7 @@ public class VoxelInventory : MonoBehaviour
         }
 
         targetList[targetIndex] = new InventorySlotData(itemId, definition.DisplayName, 1, definition.Icon, definition.ItemKind);
-        Debug.Log($"Inventory: {definition.DisplayName} = 1");
+        // Debug.Log($"Inventory: {definition.DisplayName} = 1");
         NotifyInventoryChanged();
     }
 

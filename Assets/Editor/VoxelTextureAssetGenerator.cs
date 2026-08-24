@@ -9,10 +9,11 @@ public static class VoxelTextureAssetGenerator
     private const int TextureSize = 16;
     private const string RootFolder = "Assets/VoxelTextures";
     private const string TextureFolder = RootFolder + "/Textures";
+    private const string LowResolutionTextureFolder = TextureFolder + "/16";
     private const string MaterialFolder = RootFolder + "/Materials";
-    private const string GrassBlockAtlasPath = TextureFolder + "/GrassBlock_16x32.png";
-    private const string WorkbenchAtlasPath = TextureFolder + "/Workbench_16x32.png";
-    private const string ChestAtlasPath = TextureFolder + "/Chest_16x32.png";
+    private const string GrassBlockAtlasPath = LowResolutionTextureFolder + "/GrassBlock_16x32.png";
+    private const string WorkbenchAtlasPath = LowResolutionTextureFolder + "/Workbench_16x32.png";
+    private const string ChestAtlasPath = LowResolutionTextureFolder + "/Chest_16x32.png";
 
 
     [InitializeOnLoadMethod]
@@ -151,13 +152,15 @@ public static class VoxelTextureAssetGenerator
 
     private static void UpdateEditableTextureReferences()
     {
-        UpdateItemTextureReference("Assets/Crafting/Items/ClayBrick.asset", TextureFolder + "/ClayBrick_16x16.png");
-        UpdateItemTextureReference("Assets/Crafting/Items/StoneBrick.asset", TextureFolder + "/StoneBrick_16x16.png");
-        UpdateRecipeTextureReference("Assets/Crafting/Recipes/StoneBrick.asset", TextureFolder + "/StoneBrick_16x16.png");
+        UpdateItemTextureReference("Assets/Crafting/Items/ClayBrick.asset", LowResolutionTextureFolder + "/ClayBrick_16x16.png");
+        UpdateItemTextureReference("Assets/Crafting/Items/StoneBrick.asset", LowResolutionTextureFolder + "/StoneBrick_16x16.png");
+        UpdateRecipeTextureReference("Assets/Crafting/Recipes/StoneBrick.asset", LowResolutionTextureFolder + "/StoneBrick_16x16.png");
 
-        UpdateRecipeTextureReference("Assets/Crafting/Recipes/ClayBrick.asset", TextureFolder + "/ClayBrick_16x16.png");
-        UpdateItemTextureReference("Assets/Crafting/Items/Chest.asset", TextureFolder + "/Chest_16x32.png");
-        UpdateRecipeTextureReference("Assets/Crafting/Recipes/Chest.asset", TextureFolder + "/Chest_16x32.png");
+        UpdateRecipeTextureReference("Assets/Crafting/Recipes/ClayBrick.asset", LowResolutionTextureFolder + "/ClayBrick_16x16.png");
+        UpdateItemTextureReference("Assets/Crafting/Items/Workbench.asset", LowResolutionTextureFolder + "/Workbench_16x32.png");
+        UpdateRecipeTextureReference("Assets/Crafting/Recipes/Workbench.asset", LowResolutionTextureFolder + "/Workbench_16x32.png");
+        UpdateItemTextureReference("Assets/Crafting/Items/Chest.asset", LowResolutionTextureFolder + "/Chest_16x32.png");
+        UpdateRecipeTextureReference("Assets/Crafting/Recipes/Chest.asset", LowResolutionTextureFolder + "/Chest_16x32.png");
     }
 
     private static void UpdateItemTextureReference(string assetPath, string texturePath)
@@ -233,7 +236,7 @@ public static class VoxelTextureAssetGenerator
         foreach (BlockKind kind in Enum.GetValues(typeof(BlockKind)))
         {
             string label = GetLabel(kind);
-            string texturePath = $"{TextureFolder}/{label}_16x16.png";
+            string texturePath = $"{LowResolutionTextureFolder}/{label}_16x16.png";
             string materialPath = $"{MaterialFolder}/{label}.mat";
 
             Texture2D texture = LoadOrCreatePngTexture(texturePath, () => BuildTexture(kind, label), false);

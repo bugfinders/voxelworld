@@ -18,7 +18,7 @@ MonoBehaviour:
   outputItemId: chest
   outputDisplayName: Chest
   outputAmount: 1
-  outputIcon: {fileID: 2800000, guid: e3b49a66368b4c941bb409653698e5a0, type: 3}
+  outputIcon: {fileID: 2800000, guid: e4d492c9f23b13b42a4f81a88434ced9, type: 3}
   recipeType: 2
   ingredientItemIds:
   - Wood

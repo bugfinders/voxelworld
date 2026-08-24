@@ -108,4 +108,42 @@
 .settings-panel Toggle {
     margin-top: 6px;
     margin-bottom: 6px;
+
+.settings-fullscreen-toggle {
+    width: 100%;
+    min-height: 28px;
+    flex-direction: row;
+    align-items: center;
+    color: var(--menu-text);
+}
+
+.settings-fullscreen-toggle .unity-toggle__input {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+    margin-right: 9px;
+    border-top-width: 1px;
+    border-right-width: 1px;
+    border-bottom-width: 1px;
+    border-left-width: 1px;
+    border-top-color: rgba(215, 222, 232, 0.8);
+    border-right-color: rgba(215, 222, 232, 0.8);
+    border-bottom-color: rgba(215, 222, 232, 0.8);
+    border-left-color: rgba(215, 222, 232, 0.8);
+    background-color: rgba(31, 39, 53, 0.96);
+}
+
+.settings-fullscreen-toggle .unity-toggle__checkmark {
+    width: 14px;
+    height: 14px;
+    margin-left: 2px;
+    margin-top: 2px;
+    background-color: var(--menu-accent);
+}
+
+.settings-fullscreen-toggle .unity-toggle__label {
+    color: var(--menu-text);
+    font-size: 15px;
+}
+
 }

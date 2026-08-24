@@ -18,7 +18,7 @@
             <ui:Slider name="settings-volume" low-value="0" high-value="1" value="1" />
             <ui:Label text="Mouse Sensitivity" class="settings-label" />
             <ui:Slider name="settings-sensitivity" low-value="0.5" high-value="6" value="2" />
-            <ui:Toggle name="settings-fullscreen" label="Fullscreen" />
+            <ui:Toggle name="settings-fullscreen" label="Fullscreen" class="settings-fullscreen-toggle" />
             <ui:Button name="settings-close" text="Done" class="menu-button" />
         </ui:VisualElement>
     </ui:VisualElement>

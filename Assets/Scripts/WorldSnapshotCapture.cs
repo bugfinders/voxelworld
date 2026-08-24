@@ -66,7 +66,7 @@ public sealed class WorldSnapshotCapture : MonoBehaviour
         for (int i = 0; i < enabledDocuments.Count; i++)
             enabledDocuments[i].enabled = true;
 
-        Debug.Log("Cubeits world snapshot saved to Assets/UI/StartWorldBackground.jpg.");
+        // Debug.Log("Cubeits world snapshot saved to Assets/UI/StartWorldBackground.jpg.");
         captureInProgress = false;
 
         if (returnToStartMenuAfterCapture)

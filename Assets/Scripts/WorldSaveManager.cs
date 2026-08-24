@@ -36,7 +36,7 @@ public sealed class WorldSaveManager : MonoBehaviour
         loadRequested = false;
         PendingWorldSeed = Guid.NewGuid().GetHashCode();
         HasPendingWorldSeed = true;
-        Debug.Log($"Cubeits new world seed: {PendingWorldSeed}");
+        // Debug.Log($"Cubeits new world seed: {PendingWorldSeed}");
     }
 
     public static void RequestLoadGame()
@@ -106,7 +106,7 @@ public sealed class WorldSaveManager : MonoBehaviour
             if (File.Exists(SavePath))
                 File.Delete(SavePath);
             File.Move(temporaryPath, SavePath);
-            Debug.Log("Cubeits world saved.");
+            // Debug.Log("Cubeits world saved.");
             return true;
         }
         catch (Exception exception)
@@ -163,7 +163,7 @@ public sealed class WorldSaveManager : MonoBehaviour
                     playerController.SyncLookToTransforms();
             }
 
-            Debug.Log("Cubeits world loaded.");
+            // Debug.Log("Cubeits world loaded.");
             return true;
         }
         catch (Exception exception)

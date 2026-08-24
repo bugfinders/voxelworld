@@ -98,7 +98,7 @@ public class ChunkedVoxelTerrain : MonoBehaviour
         if (control != null)
             control.enabled = true;
 
-        Debug.Log("Voxel terrain initialized.");
+        // Debug.Log("Voxel terrain initialized.");
     }
 
     private bool ValidateMaterials()

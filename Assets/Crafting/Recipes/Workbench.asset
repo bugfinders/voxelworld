@@ -18,7 +18,7 @@ MonoBehaviour:
   outputItemId: workbench
   outputDisplayName: Workbench
   outputAmount: 1
-  outputIcon: {fileID: 0}
+  outputIcon: {fileID: 2800000, guid: e056f8b4423eb7542a3c37ada20bacf0, type: 3}
   recipeType: 1
   ingredientItemIds:
   - Wood

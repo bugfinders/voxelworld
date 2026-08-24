@@ -20,7 +20,7 @@ public sealed class CraftingRuntimeTests
             add.Invoke(inventory, new object[] { 4 });
 
         VisualElement gameplayMenuRoot = GameObject.Find("GameplayMenu").GetComponent<UIDocument>().rootVisualElement.Q<VisualElement>("game-root");
-        Debug.Log($"Gameplay overlay display: {gameplayMenuRoot.resolvedStyle.display}");
+        // Debug.Log($"Gameplay overlay display: {gameplayMenuRoot.resolvedStyle.display}");
         Assert.AreEqual(DisplayStyle.None, gameplayMenuRoot.resolvedStyle.display);
         GameObject inventoryObject = GameObject.Find("InventoryUI");
 
@@ -44,7 +44,7 @@ public sealed class CraftingRuntimeTests
         }
 
         int woodCount = (int)inventory.GetType().GetMethod("GetItemCount").Invoke(inventory, new object[] { "Wood" });
-        Debug.Log($"Craft UI state: found={workbenchButton != null}, enabled={workbenchButton != null && workbenchButton.enabledSelf}, wood={woodCount}");
+        // Debug.Log($"Craft UI state: found={workbenchButton != null}, enabled={workbenchButton != null && workbenchButton.enabledSelf}, wood={woodCount}");
         Assert.IsNotNull(workbenchButton);
         Assert.IsTrue(workbenchButton.enabledSelf);
     }
