@@ -57,6 +57,7 @@ public class Chunk : MonoBehaviour
     /// </summary>
     public void BuildMesh()
     {
+        EnsureRenderComponents();
         List<Vector3> vertices = new List<Vector3>();
         List<Vector2> uvs = new List<Vector2>();
         List<int>[] trianglesByMaterial = CreateTriangleLists();
@@ -108,8 +109,17 @@ public class Chunk : MonoBehaviour
         mesh.RecalculateBounds();
         meshFilter.sharedMesh = mesh;
         meshRenderer.sharedMaterials = materials;
-        meshCollider.sharedMesh = null;
         meshCollider.sharedMesh = mesh;
+    }
+
+    private void EnsureRenderComponents()
+    {
+        if (meshFilter == null)
+            meshFilter = GetComponent<MeshFilter>() ?? gameObject.AddComponent<MeshFilter>();
+        if (meshRenderer == null)
+            meshRenderer = GetComponent<MeshRenderer>() ?? gameObject.AddComponent<MeshRenderer>();
+        if (meshCollider == null)
+            meshCollider = GetComponent<MeshCollider>() ?? gameObject.AddComponent<MeshCollider>();
     }
 
     private List<int>[] CreateTriangleLists()

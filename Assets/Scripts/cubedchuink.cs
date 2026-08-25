@@ -18,6 +18,10 @@ public class ChunkedVoxelTerrain : MonoBehaviour
 
     private int worldSeed;
     private float[] generationMaterialWeights;
+    private Material[] runtimeMaterials;
+    private Color[] runtimeMaterialBaseColors;
+    private string[] runtimeMaterialNames;
+
 
 
     private GameObject hoverCube;
@@ -72,6 +76,7 @@ public class ChunkedVoxelTerrain : MonoBehaviour
         if (inventory == null)
             inventory = gameObject.AddComponent<VoxelInventory>();
         inventory.Initialize(materials, placeableItems);
+        CreateRuntimeMaterials();
     }
 
     private IEnumerator Start()
@@ -530,6 +535,25 @@ public class ChunkedVoxelTerrain : MonoBehaviour
         }
 
         return grassMaterialIndex;
+    }
+
+    private void CreateRuntimeMaterials()
+    {
+        runtimeMaterials = new Material[materials.Length];
+        runtimeMaterialBaseColors = new Color[materials.Length];
+        runtimeMaterialNames = new string[materials.Length];
+
+        for (int i = 0; i < materials.Length; i++)
+        {
+            if (materials[i] == null)
+                continue;
+
+            runtimeMaterials[i] = new Material(materials[i]);
+            runtimeMaterials[i].name = materials[i].name;
+            runtimeMaterialBaseColors[i] = materials[i].GetColor("_BaseColor");
+            runtimeMaterialNames[i] = materials[i].name;
+            materials[i] = runtimeMaterials[i];
+        }
     }
 
     private void CreateChunks()
@@ -1032,6 +1056,52 @@ public class ChunkedVoxelTerrain : MonoBehaviour
 
         target = solidCoordinate + faceDirection;
         return true;
+    }
+
+    /// <summary>
+    /// Applies separate nighttime brightness values to grass, ground, and tree materials.
+    /// </summary>
+    public void SetNightMaterialBrightness(float grassBrightness, float groundBrightness, float treeBrightness)
+    {
+        if (runtimeMaterials == null || runtimeMaterialBaseColors == null || runtimeMaterialNames == null)
+            return;
+
+        for (int i = 0; i < runtimeMaterials.Length; i++)
+        {
+            Material material = runtimeMaterials[i];
+            if (material == null)
+                continue;
+
+            float brightness = 1f;
+            string materialName = runtimeMaterialNames[i];
+            if (materialName == "Grass")
+                brightness = grassBrightness;
+            else if (materialName == "Wood" || materialName == "Leaves")
+                brightness = treeBrightness;
+            else if (materialName == "Dirt" || materialName == "Stone" || materialName == "Sand" || materialName == "ClayBrick" || materialName == "StoneBrick" || materialName.EndsWith("Ore"))
+                brightness = groundBrightness;
+
+            Color baseColor = runtimeMaterialBaseColors[i];
+            Color tintedColor = new Color(
+                baseColor.r * brightness,
+                baseColor.g * brightness,
+                baseColor.b * brightness,
+                baseColor.a);
+            material.SetColor("_BaseColor", tintedColor);
+            material.SetColor("_Color", tintedColor);
+        }
+    }
+
+    private void OnDestroy()
+    {
+        if (runtimeMaterials == null)
+            return;
+
+        foreach (Material material in runtimeMaterials)
+        {
+            if (material != null)
+                Destroy(material);
+        }
     }
 
     private void DrawVisibleChunks()
