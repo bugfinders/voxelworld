@@ -36,12 +36,13 @@ public class PlaceableItemAsset : ScriptableObject
         }
     }
 
-
     /// <summary>
     /// Returns whether this item definition represents the supplied terrain material.
+    /// Runtime terrain materials retain the source asset name after cloning.
     /// </summary>
     public bool MatchesMaterial(Material material)
     {
-        return material != null && voxelMaterial == material;
+        return material != null && voxelMaterial != null &&
+               (voxelMaterial == material || voxelMaterial.name == material.name);
     }
 }

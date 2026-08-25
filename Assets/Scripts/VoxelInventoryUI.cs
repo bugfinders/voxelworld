@@ -761,6 +761,7 @@ public class VoxelInventoryUI : MonoBehaviour
 
     private void GenerateAdditionalSlots()
     {
+        if (additionalContentHost == null)
             return;
 
         additionalContentHost.Clear();

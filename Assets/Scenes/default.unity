@@ -607,6 +607,18 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::WorldSaveManager
   terrain: {fileID: 1470041108}
   player: {fileID: 1036100326}
+  sun: {fileID: 0}
+  moon: {fileID: 0}
+  dayDurationSeconds: 600
+  timeOfDay: 0.25
+  daySunIntensity: 1
+  nightMoonIntensity: 0.3
+  dayAmbientIntensity: 1
+  nightAmbientIntensity: 0.2
+  nightGrassBrightness: 0.3
+  nightGroundBrightness: 0.3
+  nightTreeBrightness: 0.513
+  sunYaw: -30
 --- !u!114 &1576708377
 MonoBehaviour:
   m_ObjectHideFlags: 0

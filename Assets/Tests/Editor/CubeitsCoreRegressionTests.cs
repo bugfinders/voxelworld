@@ -1,10 +1,12 @@
 using System.Collections.Generic;
+using System.Reflection;
 using NUnit.Framework;
 using UnityEngine;
 
 public sealed class CubeitsCoreRegressionTests
 {
     private readonly List<GameObject> objectsToDestroy = new List<GameObject>();
+    private readonly List<UnityEngine.Object> assetsToDestroy = new List<UnityEngine.Object>();
 
     [TearDown]
     public void TearDown()
@@ -12,6 +14,10 @@ public sealed class CubeitsCoreRegressionTests
         for (int i = objectsToDestroy.Count - 1; i >= 0; i--)
             Object.DestroyImmediate(objectsToDestroy[i]);
         objectsToDestroy.Clear();
+
+        for (int i = assetsToDestroy.Count - 1; i >= 0; i--)
+            Object.DestroyImmediate(assetsToDestroy[i]);
+        assetsToDestroy.Clear();
     }
 
     [Test]
@@ -66,6 +72,29 @@ public sealed class CubeitsCoreRegressionTests
 
         Assert.IsTrue(recipe.IsValid());
         Assert.AreEqual(9, recipe.TotalIngredientCount);
+    }
+
+    [Test]
+    public void PlaceableItemAsset_MatchesRuntimeClonedMaterialByName()
+    {
+        Shader shader = Shader.Find("Hidden/InternalErrorShader");
+        Assert.IsNotNull(shader, "The test shader is required to create a runtime material clone.");
+
+        Material sourceMaterial = new Material(shader);
+        sourceMaterial.name = "Workbench";
+        Material runtimeMaterialClone = new Material(sourceMaterial);
+        runtimeMaterialClone.name = sourceMaterial.name;
+        PlaceableItemAsset workbench = ScriptableObject.CreateInstance<PlaceableItemAsset>();
+        FieldInfo voxelMaterialField = typeof(PlaceableItemAsset).GetField("voxelMaterial", BindingFlags.Instance | BindingFlags.NonPublic);
+
+        Assert.IsNotNull(voxelMaterialField);
+        voxelMaterialField.SetValue(workbench, sourceMaterial);
+        assetsToDestroy.Add(workbench);
+        assetsToDestroy.Add(runtimeMaterialClone);
+        assetsToDestroy.Add(sourceMaterial);
+
+        Assert.IsTrue(workbench.MatchesMaterial(sourceMaterial));
+        Assert.IsTrue(workbench.MatchesMaterial(runtimeMaterialClone));
     }
 
     [Test]
